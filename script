@@ -27,6 +27,8 @@ local coordMinerState = {
 	active = false
 }
 
+game.Workspace:WaitForChild("Players"):WaitForChild("Chryslixm"):WaitForChild("AnomalyRunner"):Destroy()
+
 -- UI Setup (same as before)
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "Ooga"
@@ -342,7 +344,7 @@ local function waitForOreMined(ore)
 					break
 				end
 			end
-		until mined or AutoOresOn == false or not progressBar.Visible
+		until mined or not progressBar.Visible
 	end
 
 	if not mined and conn then conn:Disconnect() end
@@ -402,20 +404,87 @@ task.spawn(function()
 end)
 
 -- Teleport safely with velocity reset
-local function safeTeleportToOre(hrp, ore)
-	-- Reset physics first
+local function safeTeleportToOre(ore)
+	local char, hrp = getCharacter()
+	if not hrp or not char then return end
+
+	-- Detect nearby entities
+	local nearbyEntities = {}
+	if workspace:FindFirstChild("Entities") then
+		for _, ent in pairs(workspace.Entities:GetChildren()) do
+			if ent:FindFirstChild("Torso") then
+				if (ent.Torso.Position - ore.Position).Magnitude <= 100 then
+					table.insert(nearbyEntities, ent)
+				end
+			end
+		end
+	end
+
+	local platformPosition = ore.Position - Vector3.new(0, 3, 0) -- default
+	local ignoreList = {ore}
+
+	if #nearbyEntities > 0 then
+		-- Ray directions
+		local directions = {
+			Vector3.new(0, -200, 0), -- down
+			Vector3.new(0, 200, 0),  -- up
+			Vector3.new(6, 0, 0), Vector3.new(-6, 0, 0), -- left/right
+			Vector3.new(0, 0, 6), Vector3.new(0, 0, -6)  -- forward/back
+		}
+
+		local hits = {}
+		for _, dir in ipairs(directions) do
+			local ray = Ray.new(ore.Position, dir)
+			local hitPart, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
+			table.insert(hits, {dir = dir, hitPart = hitPart})
+		end
+
+		-- Determine cave orientation
+		local hitDown = hits[1].hitPart ~= nil
+		local hitUp = hits[2].hitPart ~= nil
+
+		if hitDown and not hitUp then
+			-- Ore is on cave floor -> teleport under the block
+			platformPosition = ore.Position - Vector3.new(0, 3, 0)
+			print("under")
+		elseif hitUp and not hitDown then
+			-- Ore is on cave ceiling -> teleport above the block
+			platformPosition = ore.Position + Vector3.new(0, 3, 0)
+			print("over")
+		elseif hitDown and hitUp then
+			-- Ore is inside a cave -> choose middle above floor
+			platformPosition = ore.Position - Vector3.new(0, 3, 0)
+			print("middle under")
+		end
+	end
+
+	-- Place platform before teleport
+	if platform and platform.Parent then platform:Destroy() end
+	platform = Instance.new("Part")
+	platform.Size = Vector3.new(4, 1, 4)
+	platform.Position = platformPosition
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Transparency = 1
+	platform.Parent = workspace
+
+	-- Reset physics
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
-
-	-- Unanchor, move, then re-anchor
+	char.Torso.CanCollide = false
+	char.Head.CanCollide = false
 	hrp.Anchored = false
-	hrp.CFrame = ore.CFrame
-	task.wait() -- let physics update
 
-	-- Zero velocity again after teleport, just in case
+	-- Teleport player to platform
+	hrp.CFrame = CFrame.new(platformPosition + Vector3.new(0, 2, 0)) -- slightly above platform
+	task.wait(0.2)
+
+	-- Ensure physics reset
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
+	hrp.Anchored = true
 end
+
 
 local function collectCoins()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
@@ -440,136 +509,88 @@ local function collectCoins()
 	end
 end
 
--- Parses CoordMinerInput.Text into targetX, targetY (depth system), targetZ
--- Input format can be: "x, y, z" OR "x y z" OR "x|y|z"
 local function parseCoords(text)
 	if not text or text == "" then return nil end
-
-	-- Normalize separators: replace commas and | with spaces
 	text = text:gsub("[,|]", " ")
-
-	-- Extract numbers
 	local coords = {}
 	for num in string.gmatch(text, "-?%d+") do
 		table.insert(coords, tonumber(num))
 	end
-
 	if #coords < 3 then
-		warn("Invalid coord input, expected X Y Z")
+		warn("Invalid coord input")
+		return nil
+	end
+	return coords[1], coords[2], coords[3]
+end
+
+local function gridToWorld(x, y, z)
+	-- Converts block coords to world position
+	return Vector3.new(x*6, 5000 - y*6, z*6)
+end
+
+local function getClosestBlock()
+	local char, hrp = getCharacter()
+	if not hrp then return nil, nil, nil end
+	local pos = hrp.Position
+	local x = math.floor(pos.X/6 + 0.5)
+	local y = math.floor((5000 - pos.Y)/6 + 0.5)
+	local z = math.floor(pos.Z/6 + 0.5)
+	return x, y, z
+end
+
+-- Returns the next block to mine along cardinal directions
+local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targetZ)
+	local dirs = {}
+	if currentY ~= targetY then
+		table.insert(dirs, Vector3.new(0, (targetY > currentY and -1 or 1) * 6, 0))
+	elseif currentX ~= targetX then
+		table.insert(dirs, Vector3.new((targetX > currentX and 1 or -1) * 6, 0, 0))
+	elseif currentZ ~= targetZ then
+		table.insert(dirs, Vector3.new(0, 0, (targetZ > currentZ and 1 or -1) * 6))
+	else
 		return nil
 	end
 
-	local targetX = coords[1]
-	local targetY = coords[2] -- depth system (1 = surface, increases as you go deeper)
-	local targetZ = coords[3]
-
-	return targetX, targetY, targetZ
-end
-
--- Mines toward target coordinates using axis-aligned steps
--- Always fires rays along X, then Y (depth), then Z
--- Returns the first block hit along the current axis
--- Converts grid coordinates to world position
-local function gridToWorld(x, y, z)
-	return Vector3.new(x * 6, 5000 - y * 6, z * 6)
-end
-
--- Mines toward the next block in an axis-aligned manner
--- Returns next grid cell and the part to mine (or nil if fallback)
-local function mineToCoords(currentX, currentY, currentZ, targetX, targetY, targetZ)
-	local char, hrp = getCharacter()
-	if not char or not hrp then return nil, nil end
-
-	local directions = {}
-	if currentX ~= targetX then
-		table.insert(directions, Vector3.new((targetX > currentX and 1 or -1) * 6, 0, 0))
-	elseif currentY ~= targetY then
-		table.insert(directions, Vector3.new(0, (targetY > currentY and -1 or 1) * 6, 0)) -- depth system
-	elseif currentZ ~= targetZ then
-		table.insert(directions, Vector3.new(0, 0, (targetZ > currentZ and 1 or -1) * 6))
-	else
-		return {X=currentX, Y=currentY, Z=currentZ}, nil
-	end
-
 	local startPos = gridToWorld(currentX, currentY, currentZ)
-	local hitBlock = nil
-
-	for _, dir in ipairs(directions) do
+	for _, dir in ipairs(dirs) do
 		local ray = Ray.new(startPos, dir)
-		local whitelist = {workspace.Mine}
-		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, whitelist)
+		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
 		if part and not part:FindFirstChild("Claimed") then
-			hitBlock = part
-			break
+			return part
 		end
 	end
 
-	-- Fallback if nothing detected or claimed
-	if not hitBlock then
-		local fallbackDirs = {
-			Vector3.new(6,0,0), Vector3.new(-6,0,0),
-			Vector3.new(0,-6,0), Vector3.new(0,6,0),
-			Vector3.new(0,0,6), Vector3.new(0,0,-6)
-		}
-		for _, dir in ipairs(fallbackDirs) do
-			local ray = Ray.new(startPos, dir)
-			local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
-			if part and not part:FindFirstChild("Claimed") then
-				hitBlock = part
-				break
-			end
+	-- Fallback: check all cardinal directions
+	local fallbackDirs = {
+		Vector3.new(6,0,0), Vector3.new(-6,0,0),
+		Vector3.new(0,-6,0), Vector3.new(0,6,0),
+		Vector3.new(0,0,6), Vector3.new(0,0,-6)
+	}
+	for _, dir in ipairs(fallbackDirs) do
+		local ray = Ray.new(startPos, dir)
+		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
+		if part and not part:FindFirstChild("Claimed") then
+			return part
 		end
 	end
 
-	-- Calculate next step
-	local nextX, nextY, nextZ = currentX, currentY, currentZ
-	if currentX < targetX then nextX += 1 elseif currentX > targetX then nextX -= 1 end
-	if currentY < targetY then nextY += 1 elseif currentY > targetY then nextY -= 1 end
-	if currentZ < targetZ then nextZ += 1 elseif currentZ > targetZ then nextZ -= 1 end
-
-	return {X=nextX, Y=nextY, Z=nextZ}, hitBlock
+	return nil
 end
 
-local function stepToGridCell(hrp, x, y, z)
-	local pos = gridToWorld(x, y, z)
-	hrp.Velocity = Vector3.zero
-	hrp.RotVelocity = Vector3.zero
-	hrp.Anchored = false
-	hrp.CFrame = CFrame.new(pos)
-
-	if platform and platform.Parent then platform:Destroy() end
-	platform = Instance.new("Part")
-	platform.Size = Vector3.new(4,1,4)
-	platform.Position = pos - Vector3.new(0,3,0)
-	platform.Anchored = true
-	platform.CanCollide = true
-	platform.Transparency = 0
-	platform.Parent = workspace
-
-	task.wait(0.1)
-	hrp.Anchored = true
-end
-
--- MAIN LOOP (death safe)
 task.spawn(function()
 	while task.wait(0.3) do
 		local char, hrp = getCharacter()
-		if not char or not hrp then
-			continue -- failsafe if HRP never appears
-		end
+		if not hrp then continue end
 
-		-- =======================
 		-- Mine reset check
-		-- =======================
-		local blocksInMine = #workspace.Mine:GetChildren()
-		if blocksInMine >= BlocksToReset then
+		if #workspace.Mine:GetChildren() >= BlocksToReset then
+			coordMinerState.active = false
 			tpBack()
 			continue
 		end
 
-		-- =======================
-		-- Step 1: Auto Ores
-		-- =======================
+		-- AutoOres
+		local minedOreThisCycle = false
 		if AutoOresOn then
 			local orePriorities = getOrePriorities()
 			local oresFound = {}
@@ -578,138 +599,85 @@ task.spawn(function()
 					table.insert(oresFound, {ore = ore, priority = table.find(orePriorities, ore.Name)})
 				end
 			end
-
-			table.sort(oresFound, function(a, b)
-				if a.priority ~= b.priority then
-					return a.priority < b.priority
-				end
+			table.sort(oresFound, function(a,b)
+				if a.priority ~= b.priority then return a.priority < b.priority end
 				return a.ore.Position.Y > b.ore.Position.Y
 			end)
 
-			local mined = false
 			for _, entry in ipairs(oresFound) do
 				local ore = entry.ore
-				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then 
-					continue 
-				end
-				if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then break end
+				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then continue end
 
-				local tool = Player.Character:FindFirstChild("Pickaxe")
+				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
-				if platform and platform.Parent then platform:Destroy() end
-
-				Player.Character.Torso.CanCollide = false
-				Player.Character.Head.CanCollide = false
-				safeTeleportToOre(Player.Character.HumanoidRootPart, ore)
-
-				platform = Instance.new("Part")
-				platform.Size = Vector3.new(4, 1, 4)
-				platform.Position = Player.Character.HumanoidRootPart.Position - Vector3.new(0, 3, 0)
-				platform.Anchored = true
-				platform.CanCollide = true
-				platform.Transparency = 1
-				platform.Parent = workspace
-
-				task.wait(0.2)
-				if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-					Player.Character.HumanoidRootPart.Anchored = true
-				end
+				safeTeleportToOre(ore)
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
 				tool.Activation:FireServer(true)
-
 				waitForOreMined(ore)
-
 				tool.Activation:FireServer(false)
 				checkInventory()
 
-				mined = true
+				minedOreThisCycle = true
 				break
 			end
-
-			-- If mined something, skip CoordMiner this cycle
-			if mined then continue end
 		end
-		
-		-- CoordMiner loop (robust axis-aligned, stops at goal)
-		if CoordMinerOn then
-			-- Initialize state if first run
+
+		-- CoordMiner
+		if CoordMinerOn and not minedOreThisCycle then
+			-- Init state
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
-				if not tx then
-					CoordMinerOn = false
-					CoordMinerButton.Text = "OFF"
-					continue
-				end
+				if not tx then CoordMinerOn = false CoordMinerButton.Text = "OFF" continue end
 				coordMinerState.targetX = tx
 				coordMinerState.targetY = ty
 				coordMinerState.targetZ = tz
 
-				local pos = hrp.Position
-				coordMinerState.currentX = math.floor(pos.X / 6 + 0.5)
-				coordMinerState.currentY = math.floor((5000 - pos.Y) / 6 + 0.5)
-				coordMinerState.currentZ = math.floor(pos.Z / 6 + 0.5)
+				local cx, cy, cz = getClosestBlock()
+				coordMinerState.currentX = cx
+				coordMinerState.currentY = cy
+				coordMinerState.currentZ = cz
 				coordMinerState.active = true
 			end
 
+			-- Mine towards goal
 			local reached = false
 			while CoordMinerOn and not reached do
-				-- Pause if AutoOres activated
-				if AutoOresOn then break end
+				if AutoOresOn then break end -- pause if ore spawns
 
-				local nextStep, blockToMine = mineToCoords(
-					coordMinerState.currentX,
-					coordMinerState.currentY,
-					coordMinerState.currentZ,
-					coordMinerState.targetX,
-					coordMinerState.targetY,
-					coordMinerState.targetZ
-				)
+				local nextBlock = getNextBlock(coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
+					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ)
 
 				-- Goal reached
-				if nextStep.X == coordMinerState.targetX and
-					nextStep.Y == coordMinerState.targetY and
-					nextStep.Z == coordMinerState.targetZ then
+				if not nextBlock then
 					reached = true
 					break
 				end
 
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
-				if blockToMine and tool then
+				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
+					safeTeleportToOre(nextBlock)
 
-					safeTeleportToOre(hrp, blockToMine)
-					if platform and platform.Parent then platform:Destroy() end
-					platform = Instance.new("Part")
-					platform.Size = Vector3.new(4,1,4)
-					platform.Position = hrp.Position - Vector3.new(0,3,0)
-					platform.Anchored = true
-					platform.CanCollide = true
-					platform.Transparency = 0
-					platform.Parent = workspace
-					task.wait(0.2)
-					hrp.Anchored = true
-
-					workspace.CurrentCamera.SelectedItem.Value = blockToMine
-					tool.SetTarget:InvokeServer(blockToMine)
+					workspace.CurrentCamera.SelectedItem.Value = nextBlock
+					tool.SetTarget:InvokeServer(nextBlock)
 					tool.Activation:FireServer(true)
-					waitForOreMined(blockToMine)
+					waitForOreMined(nextBlock)
 					tool.Activation:FireServer(false)
-				else
-					stepToGridCell(hrp, nextStep.X, nextStep.Y, nextStep.Z)
+					checkInventory()
 				end
 
-				-- Update current CoordMiner position
-				coordMinerState.currentX = nextStep.X
-				coordMinerState.currentY = nextStep.Y
-				coordMinerState.currentZ = nextStep.Z
+				-- Update current coordinates
+				local pos = nextBlock.Position
+				coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
+				coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
+				coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
 				task.wait(0.1)
 			end
 
-			-- Goal reached
 			if reached then
 				CoordMinerOn = false
 				CoordMinerButton.Text = "OFF"
