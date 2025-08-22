@@ -490,7 +490,7 @@ end
 
 local overlapParams do
 	overlapParams = OverlapParams.new()
-	overlapParams.FilterType = Enum.OverlapFilterType.Whitelist
+	overlapParams.FilterType = Enum.RaycastFilterType.Whitelist
 	overlapParams.FilterDescendantsInstances = {workspace.Mine}
 	overlapParams.MaxParts = 20
 end
