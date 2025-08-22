@@ -1,4 +1,4 @@
-print("v3")
+print("v4")
 
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
@@ -459,6 +459,7 @@ local function safeTeleportToOre(ore)
 				inst.Position.Y + inst.Size.Y/2 + STAND_OFFSET,
 				ore.Position.Z
 			)
+			print("floor")
 		elseif downAdj and not upAdj then
 			-- Floor → go below the floor block
 			local inst = downAdj.Instance
@@ -467,6 +468,7 @@ local function safeTeleportToOre(ore)
 				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
 				ore.Position.Z
 			)
+			print("ceil")
 		elseif upAdj and downAdj then
 			-- Enclosed → default below the floor block
 			local inst = downAdj.Instance
@@ -475,9 +477,11 @@ local function safeTeleportToOre(ore)
 				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
 				ore.Position.Z
 			)
+			print("both hit floor")
 		else
 			-- Exposed ore → simple safe spot just above
 			platformPos = ore.Position + Vector3.new(0, STAND_OFFSET, 0)
+			print("none hit")
 		end
 	else
 		-- No entities nearby: simple placement above ore
