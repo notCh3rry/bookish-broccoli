@@ -563,6 +563,7 @@ task.spawn(function()
 		-- Step 1: Auto Ores
 		-- =======================
 		if AutoOresOn then
+			print("ores on")
 			local orePriorities = getOrePriorities()
 			local oresFound = {}
 			for _, ore in pairs(workspace.Mine:GetChildren()) do
@@ -580,6 +581,7 @@ task.spawn(function()
 
 			local mined = false
 			for _, entry in ipairs(oresFound) do
+				print("ores")
 				local ore = entry.ore
 				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then 
 					continue 
@@ -588,6 +590,8 @@ task.spawn(function()
 
 				local tool = Player.Character:FindFirstChild("Pickaxe")
 				if not tool then break end
+				
+				print("passed checks")
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
 				if platform and platform.Parent then platform:Destroy() end
