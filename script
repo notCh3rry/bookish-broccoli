@@ -1,4 +1,4 @@
-print("v2")
+print("v3")
 
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
@@ -19,9 +19,8 @@ local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
 
-local UP_CHECK = 200
-local DOWN_CHECK = 200
-local STAND_OFFSET = 5
+local ADJ_CHECK = 8     -- how far to look for immediate block adjacency (studs)
+local STAND_OFFSET = 5  -- how far to stand above/below the surface (studs)
 
 local coordMinerState = {
 	currentX = nil,
@@ -411,56 +410,92 @@ end)
 
 -- Teleport safely with velocity reset
 
+-- Tunables
+
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
 
-	local ignoreList = {ore, char}
-	if platform and platform.Parent then
-		table.insert(ignoreList, platform)
+	-- Optional: only do cave-escape logic if entities are nearby (100 studs)
+	local entitiesNearby = false
+	if workspace:FindFirstChild("Entities") then
+		for _, ent in ipairs(workspace.Entities:GetChildren()) do
+			local torso = ent:FindFirstChild("Torso") or ent:FindFirstChild("HumanoidRootPart")
+			if torso and (torso.Position - ore.Position).Magnitude <= 100 then
+				entitiesNearby = true
+				break
+			end
+		end
 	end
 
-	-- Raycast params
+	-- Raycast only against mine blocks (avoids player, platform, entities, etc.)
+	local mineFolder = workspace:FindFirstChild("Mine") or workspace
 	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = ignoreList
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = {mineFolder}
 	params.IgnoreWater = true
 
-	local origin = ore.Position
-	local upResult = workspace:Raycast(origin, Vector3.new(0, UP_CHECK, 0), params)
-	local downResult = workspace:Raycast(origin, Vector3.new(0, -DOWN_CHECK, 0), params)
+	-- Start probes *just* outside the ore so we don't ever hit the ore itself
+	local sizeY = (ore.Size and ore.Size.Y) or 6
+	local aboveOrigin = ore.Position + Vector3.new(0, sizeY/2 + 0.2, 0)
+	local belowOrigin = ore.Position - Vector3.new(0, sizeY/2 + 0.2, 0)
+
+	local upAdj   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  ADJ_CHECK, 0), params)
+	local downAdj = workspace:Raycast(belowOrigin,  Vector3.new(0, -ADJ_CHECK, 0), params)
 
 	local platformPos
-	if downResult and not upResult then
-		-- Ore on cave ceiling → teleport ABOVE ceiling
-		platformPos = downResult.Position + Vector3.new(0, STAND_OFFSET, 0)
-		print("Ore on roof, teleporting above ceiling")
-	elseif upResult and not downResult then
-		-- Ore on cave floor → teleport BELOW floor
-		platformPos = upResult.Position - Vector3.new(0, STAND_OFFSET, 0)
-		print("Ore on floor, teleporting below floor")
-	elseif upResult and downResult then
-		-- Enclosed → default to teleport BELOW floor
-		platformPos = upResult.Position - Vector3.new(0, STAND_OFFSET, 0)
-		print("Ore enclosed, teleporting below block")
+
+	if entitiesNearby then
+		-- Correct cave-orientation mapping:
+		--  * up-only  -> ceiling ore  -> go ABOVE ceiling
+		--  * down-only-> floor ore    -> go BELOW floor
+		--  * both     -> enclosed     -> prefer BELOW floor (safer)
+		--  * neither  -> exposed      -> above ore
+		if upAdj and not downAdj then
+			-- Ceiling → stand on top of that ceiling block
+			local inst = upAdj.Instance
+			platformPos = Vector3.new(
+				ore.Position.X,
+				inst.Position.Y + inst.Size.Y/2 + STAND_OFFSET,
+				ore.Position.Z
+			)
+		elseif downAdj and not upAdj then
+			-- Floor → go below the floor block
+			local inst = downAdj.Instance
+			platformPos = Vector3.new(
+				ore.Position.X,
+				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
+				ore.Position.Z
+			)
+		elseif upAdj and downAdj then
+			-- Enclosed → default below the floor block
+			local inst = downAdj.Instance
+			platformPos = Vector3.new(
+				ore.Position.X,
+				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
+				ore.Position.Z
+			)
+		else
+			-- Exposed ore → simple safe spot just above
+			platformPos = ore.Position + Vector3.new(0, STAND_OFFSET, 0)
+		end
 	else
-		-- No hits (exposed ore) → just above ore
-		platformPos = origin + Vector3.new(0, STAND_OFFSET, 0)
-		print("Ore exposed, teleporting above ore")
+		-- No entities nearby: simple placement above ore
+		platformPos = ore.Position + Vector3.new(0, STAND_OFFSET, 0)
 	end
 
-	-- --- Place platform BEFORE teleport ---
+	-- Build platform BEFORE teleport
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
+	platform.Name = "TPPlatform"
 	platform.Size = Vector3.new(4, 1, 4)
 	platform.CFrame = CFrame.new(platformPos)
 	platform.Anchored = true
 	platform.CanCollide = true
 	platform.Transparency = 1
-	platform.Name = "TPPlatform"
 	platform.Parent = workspace
 
-	-- --- Teleport player onto the platform ---
+	-- Teleport on top of platform
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
 	if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
