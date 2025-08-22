@@ -17,6 +17,16 @@ local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
 
+local coordMinerState = {
+	currentX = nil,
+	currentY = nil,
+	currentZ = nil,
+	targetX = nil,
+	targetY = nil,
+	targetZ = nil,
+	active = false
+}
+
 -- UI Setup (same as before)
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "Ooga"
@@ -95,8 +105,6 @@ AutoOresButton.Activated:Connect(function()
 	else
 		AutoOresButton.Text = "Auto Ores: OFF"
 		Player.Character.HumanoidRootPart.Anchored = false
-		Player.Character.Torso.CanCollide = true
-		Player.Character.Head.CanCollide = true
 	end
 end)
 
@@ -133,6 +141,7 @@ CoordMinerButton.Activated:Connect(function()
 		CoordMinerButton.Text = "ON"
 	else
 		CoordMinerButton.Text = "OFF"
+		Player.Character.HumanoidRootPart.Anchored = false
 	end
 end)
 
@@ -431,95 +440,94 @@ local function collectCoins()
 	end
 end
 
-local function parseCoords(input)
-	local parts = {}
-	for part in string.gmatch(input, "([^,]+)") do
-		part = part:gsub("%s+", "")
-		table.insert(parts, part)
+-- Parses CoordMinerInput.Text into targetX, targetY (depth system), targetZ
+-- Input format can be: "x, y, z" OR "x y z" OR "x|y|z"
+local function parseCoords(text)
+	if not text or text == "" then return nil end
+
+	-- Normalize separators: replace commas and | with spaces
+	text = text:gsub("[,|]", " ")
+
+	-- Extract numbers
+	local coords = {}
+	for num in string.gmatch(text, "-?%d+") do
+		table.insert(coords, tonumber(num))
 	end
 
-	if #parts ~= 3 then return nil end
+	if #coords < 3 then
+		warn("Invalid coord input, expected X Y Z")
+		return nil
+	end
 
-	local x, y, z = parts[1], parts[2], parts[3]
+	local targetX = coords[1]
+	local targetY = coords[2] -- depth system (1 = surface, increases as you go deeper)
+	local targetZ = coords[3]
 
-	local char, hrp = getCharacter()
-	if not char or not hrp then return nil end
-	local cx, cy, cz = getBlockCoordinates(hrp.Position)
-
-	-- Convert to target values (keep if "x")
-	x = (x == "x" or x == "X") and cx or tonumber(x)
-	y = (y == "x" or y == "X") and cy or tonumber(y)
-	z = (z == "x" or z == "X") and cz or tonumber(z)
-
-	return x, y, z
+	return targetX, targetY, targetZ
 end
 
-
-local function mineToCoords(targetX, targetY, targetZ)
-	local char, hrp = getCharacter()
-	if not char or not hrp then return end
-
-	local cx, cy, cz = getBlockCoordinates(hrp.Position)
-
-	-- Dig down/up first (priority: depth)
-	if cy ~= targetY then
-		local direction = (cy < targetY) and -1 or 1
-		-- mine blocks until depth == targetY
-		return Vector3.new(cx, cy + direction, cz)
-	end
-
-	-- Then move X axis
-	if cx ~= targetX then
-		local direction = (cx < targetX) and 1 or -1
-		return Vector3.new(cx + direction, cy, cz)
-	end
-
-	-- Then move Z axis
-	if cz ~= targetZ then
-		local direction = (cz < targetZ) and 1 or -1
-		return Vector3.new(cx, cy, cz + direction)
-	end
-
-	return nil -- reached goal
-end
-
--- === Helpers for Coord Miner empty-space handling ===
+-- Mines toward target coordinates using axis-aligned steps
+-- Always fires rays along X, then Y (depth), then Z
+-- Returns the first block hit along the current axis
+-- Converts grid coordinates to world position
 local function gridToWorld(x, y, z)
 	return Vector3.new(x * 6, 5000 - y * 6, z * 6)
 end
 
-local overlapParams do
-	overlapParams = OverlapParams.new()
-	overlapParams.FilterType = Enum.RaycastFilterType.Whitelist
-	overlapParams.FilterDescendantsInstances = {workspace.Mine}
-	overlapParams.MaxParts = 20
-end
+-- Mines toward the next block in an axis-aligned manner
+-- Returns next grid cell and the part to mine (or nil if fallback)
+local function mineToCoords(currentX, currentY, currentZ, targetX, targetY, targetZ)
+	local char, hrp = getCharacter()
+	if not char or not hrp then return nil, nil end
 
-local function findBlockAtGrid(x, y, z)
-	local center = gridToWorld(x, y, z)
-	local parts = workspace:GetPartBoundsInBox(CFrame.new(center), Vector3.new(5.8, 5.8, 5.8), overlapParams)
-	for _, p in ipairs(parts) do
-		if p and p.Parent == workspace.Mine and not p:FindFirstChild("Claimed") then
-			return p
+	local directions = {}
+	if currentX ~= targetX then
+		table.insert(directions, Vector3.new((targetX > currentX and 1 or -1) * 6, 0, 0))
+	elseif currentY ~= targetY then
+		table.insert(directions, Vector3.new(0, (targetY > currentY and -1 or 1) * 6, 0)) -- depth system
+	elseif currentZ ~= targetZ then
+		table.insert(directions, Vector3.new(0, 0, (targetZ > currentZ and 1 or -1) * 6))
+	else
+		return {X=currentX, Y=currentY, Z=currentZ}, nil
+	end
+
+	local startPos = gridToWorld(currentX, currentY, currentZ)
+	local hitBlock = nil
+
+	for _, dir in ipairs(directions) do
+		local ray = Ray.new(startPos, dir)
+		local whitelist = {workspace.Mine}
+		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, whitelist)
+		if part and not part:FindFirstChild("Claimed") then
+			hitBlock = part
+			break
 		end
 	end
-	return nil
-end
 
--- Scan forward up to N grid cells along the step direction; return first solid block (or nil)
-local function findFirstSolidOnPath(fromCell, toCell, maxLookahead)
-	local dx = math.clamp(toCell.X - fromCell.X, -1, 1)
-	local dy = math.clamp(toCell.Y - fromCell.Y, -1, 1)
-	local dz = math.clamp(toCell.Z - fromCell.Z, -1, 1)
-
-	for step = 1, maxLookahead do
-		local cx, cy, cz = fromCell.X + dx * step, fromCell.Y + dy * step, fromCell.Z + dz * step
-		local block = findBlockAtGrid(cx, cy, cz)
-		if block then
-			return block, {X = cx, Y = cy, Z = cz}
+	-- Fallback if nothing detected or claimed
+	if not hitBlock then
+		local fallbackDirs = {
+			Vector3.new(6,0,0), Vector3.new(-6,0,0),
+			Vector3.new(0,-6,0), Vector3.new(0,6,0),
+			Vector3.new(0,0,6), Vector3.new(0,0,-6)
+		}
+		for _, dir in ipairs(fallbackDirs) do
+			local ray = Ray.new(startPos, dir)
+			local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
+			if part and not part:FindFirstChild("Claimed") then
+				hitBlock = part
+				break
+			end
 		end
 	end
-	return nil, {X = toCell.X, Y = toCell.Y, Z = toCell.Z}
+
+	-- Calculate next step
+	local nextX, nextY, nextZ = currentX, currentY, currentZ
+	if currentX < targetX then nextX += 1 elseif currentX > targetX then nextX -= 1 end
+	if currentY < targetY then nextY += 1 elseif currentY > targetY then nextY -= 1 end
+	if currentZ < targetZ then nextZ += 1 elseif currentZ > targetZ then nextZ -= 1 end
+
+	return {X=nextX, Y=nextY, Z=nextZ}, hitBlock
 end
 
 local function stepToGridCell(hrp, x, y, z)
@@ -531,8 +539,8 @@ local function stepToGridCell(hrp, x, y, z)
 
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
-	platform.Size = Vector3.new(4, 1, 4)
-	platform.Position = pos - Vector3.new(0, 3, 0)
+	platform.Size = Vector3.new(4,1,4)
+	platform.Position = pos - Vector3.new(0,3,0)
 	platform.Anchored = true
 	platform.CanCollide = true
 	platform.Transparency = 0
@@ -563,7 +571,6 @@ task.spawn(function()
 		-- Step 1: Auto Ores
 		-- =======================
 		if AutoOresOn then
-			print("ores on")
 			local orePriorities = getOrePriorities()
 			local oresFound = {}
 			for _, ore in pairs(workspace.Mine:GetChildren()) do
@@ -581,7 +588,6 @@ task.spawn(function()
 
 			local mined = false
 			for _, entry in ipairs(oresFound) do
-				print("ores")
 				local ore = entry.ore
 				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then 
 					continue 
@@ -590,8 +596,6 @@ task.spawn(function()
 
 				local tool = Player.Character:FindFirstChild("Pickaxe")
 				if not tool then break end
-				
-				print("passed checks")
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
 				if platform and platform.Parent then platform:Destroy() end
@@ -605,7 +609,7 @@ task.spawn(function()
 				platform.Position = Player.Character.HumanoidRootPart.Position - Vector3.new(0, 3, 0)
 				platform.Anchored = true
 				platform.CanCollide = true
-				platform.Transparency = 0
+				platform.Transparency = 1
 				platform.Parent = workspace
 
 				task.wait(0.2)
@@ -629,68 +633,91 @@ task.spawn(function()
 			-- If mined something, skip CoordMiner this cycle
 			if mined then continue end
 		end
-
-		-- =======================
-		-- Step 2: Coord Miner (robust through caves/empty space)
-		-- =======================
+		
+		-- CoordMiner loop (robust axis-aligned, stops at goal)
 		if CoordMinerOn then
-			local targetX, targetY, targetZ = parseCoords(CoordMinerInput.Text)
-			if not targetX then
-				-- Bad/empty input; skip
-				continue
+			-- Initialize state if first run
+			if not coordMinerState.active then
+				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
+				if not tx then
+					CoordMinerOn = false
+					CoordMinerButton.Text = "OFF"
+					continue
+				end
+				coordMinerState.targetX = tx
+				coordMinerState.targetY = ty
+				coordMinerState.targetZ = tz
+
+				local pos = hrp.Position
+				coordMinerState.currentX = math.floor(pos.X / 6 + 0.5)
+				coordMinerState.currentY = math.floor((5000 - pos.Y) / 6 + 0.5)
+				coordMinerState.currentZ = math.floor(pos.Z / 6 + 0.5)
+				coordMinerState.active = true
 			end
 
-			-- Decide next 1-cell move toward the target (your existing helper)
-			local nextStep = mineToCoords(targetX, targetY, targetZ)
-			if not nextStep then
+			local reached = false
+			while CoordMinerOn and not reached do
+				-- Pause if AutoOres activated
+				if AutoOresOn then break end
+
+				local nextStep, blockToMine = mineToCoords(
+					coordMinerState.currentX,
+					coordMinerState.currentY,
+					coordMinerState.currentZ,
+					coordMinerState.targetX,
+					coordMinerState.targetY,
+					coordMinerState.targetZ
+				)
+
 				-- Goal reached
-				CoordMinerOn = false
-				CoordMinerButton.Text = "OFF"
-				continue
-			end
-
-			-- Where are we on the grid right now?
-			local curX, curY, curZ = getBlockCoordinates(hrp.Position)
-
-			-- Look ahead a few cells (tunnels/caves) for the next solid block
-			local lookaheadCells = 8
-			local targetBlock, cellHit = findFirstSolidOnPath({X = curX, Y = curY, Z = curZ}, nextStep, lookaheadCells)
-
-			if targetBlock then
-				-- Mine the next solid block we found ahead
-				safeTeleportToOre(hrp, targetBlock)
+				if nextStep.X == coordMinerState.targetX and
+					nextStep.Y == coordMinerState.targetY and
+					nextStep.Z == coordMinerState.targetZ then
+					reached = true
+					break
+				end
 
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
-				if tool then
+				if blockToMine and tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
 
+					safeTeleportToOre(hrp, blockToMine)
 					if platform and platform.Parent then platform:Destroy() end
 					platform = Instance.new("Part")
-					platform.Size = Vector3.new(4, 1, 4)
-					platform.Position = hrp.Position - Vector3.new(0, 3, 0)
+					platform.Size = Vector3.new(4,1,4)
+					platform.Position = hrp.Position - Vector3.new(0,3,0)
 					platform.Anchored = true
 					platform.CanCollide = true
 					platform.Transparency = 0
 					platform.Parent = workspace
-
 					task.wait(0.2)
-					if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-						Player.Character.HumanoidRootPart.Anchored = true
-					end
+					hrp.Anchored = true
 
-					workspace.CurrentCamera.SelectedItem.Value = targetBlock
-					tool.SetTarget:InvokeServer(targetBlock)
+					workspace.CurrentCamera.SelectedItem.Value = blockToMine
+					tool.SetTarget:InvokeServer(blockToMine)
 					tool.Activation:FireServer(true)
-					waitForOreMined(targetBlock)
+					waitForOreMined(blockToMine)
 					tool.Activation:FireServer(false)
+				else
+					stepToGridCell(hrp, nextStep.X, nextStep.Y, nextStep.Z)
 				end
-			else
-				-- No solid block within lookahead; just advance into empty cell (tunnel)
-				stepToGridCell(hrp, nextStep.X, nextStep.Y, nextStep.Z)
+
+				-- Update current CoordMiner position
+				coordMinerState.currentX = nextStep.X
+				coordMinerState.currentY = nextStep.Y
+				coordMinerState.currentZ = nextStep.Z
+				task.wait(0.1)
+			end
+
+			-- Goal reached
+			if reached then
+				CoordMinerOn = false
+				CoordMinerButton.Text = "OFF"
+				coordMinerState.active = false
 			end
 		end
 
-		
+		-- Collect coins
 		if CollectOn then
 			task.wait(0.5)
 			collectCoins()
