@@ -1,0 +1,695 @@
+loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+
+local isOpen = false
+local PlayerDetectionOn = true
+local AutoOresOn = false
+local CollectOn = false
+local CoordMinerOn = false
+local platform
+
+local MoveAllItems = ReplicatedStorage:WaitForChild("MoveAllItems")
+local BlocksToReset = 115000
+local SafetyDistance = 200
+local CollectThreshold = 500
+
+-- UI Setup (same as before)
+local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "Ooga"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0.157, 0, 0.731, 0)
+MainFrame.Position = UDim2.new(0.132, 0, 0.125, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(39, 39, 39)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+
+local AspectRatio = Instance.new("UIAspectRatioConstraint", MainFrame)
+AspectRatio.AspectRatio = 0.316
+AspectRatio.AspectType = Enum.AspectType.FitWithinMaxSize
+AspectRatio.DominantAxis = Enum.DominantAxis.Width
+
+local OreInput = Instance.new("TextBox", MainFrame)
+OreInput.Size = UDim2.new(0.927, 0, 0.163, 0)
+OreInput.Position = UDim2.new(0.037, 0, 0.188, 0)
+OreInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+OreInput.BorderSizePixel = 0
+OreInput.Font = Enum.Font.Highway
+OreInput.TextScaled = true
+OreInput.PlaceholderText = "Ore to Find"
+OreInput.Text = ""
+OreInput.ClearTextOnFocus = false
+OreInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local CoordMinerInput = Instance.new("TextBox", MainFrame)
+CoordMinerInput.Size = UDim2.new(0.689, 0, 0.034, 0)
+CoordMinerInput.Position = UDim2.new(0.037, 0, 0.143, 0)
+CoordMinerInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+CoordMinerInput.BorderSizePixel = 0
+CoordMinerInput.Font = Enum.Font.Highway
+CoordMinerInput.TextScaled = true
+CoordMinerInput.PlaceholderText = "Coords Goal"
+CoordMinerInput.Text = ""
+CoordMinerInput.ClearTextOnFocus = false
+CoordMinerInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Player Detection Toggle Button
+local PlayerDetectButton = Instance.new("TextButton", MainFrame)
+PlayerDetectButton.Size = UDim2.new(0.927, 0, 0.033, 0)
+PlayerDetectButton.Position = UDim2.new(0.032, 0, 0.057, 0)
+PlayerDetectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+PlayerDetectButton.BorderSizePixel = 0
+PlayerDetectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerDetectButton.TextScaled = true
+PlayerDetectButton.Font = Enum.Font.Highway
+PlayerDetectButton.Text = "Player Detection: ON"
+PlayerDetectButton.Activated:Connect(function()
+	PlayerDetectionOn = not PlayerDetectionOn
+	if PlayerDetectionOn then
+		PlayerDetectButton.Text = "Player Detection: ON"
+	else
+		PlayerDetectButton.Text = "Player Detection: OFF"
+	end
+end)
+
+-- TP Button
+local AutoOresButton = Instance.new("TextButton", MainFrame)
+AutoOresButton.Size = UDim2.new(0.927, 0, 0.033, 0)
+AutoOresButton.Position = UDim2.new(0.037, 0, 0.013, 0)
+AutoOresButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+AutoOresButton.BorderSizePixel = 0
+AutoOresButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoOresButton.TextScaled = true
+AutoOresButton.Font = Enum.Font.Highway
+AutoOresButton.Text = "Auto Ores: OFF"
+AutoOresButton.Activated:Connect(function()
+	AutoOresOn = not AutoOresOn
+	if AutoOresOn then
+		AutoOresButton.Text = "Auto Ores: ON"
+	else
+		AutoOresButton.Text = "Auto Ores: OFF"
+		Player.Character.HumanoidRootPart.Anchored = false
+		Player.Character.Torso.CanCollide = true
+		Player.Character.Head.CanCollide = true
+	end
+end)
+
+local CollectButton = Instance.new("TextButton", MainFrame)
+CollectButton.Size = UDim2.new(0.927, 0, 0.033, 0)
+CollectButton.Position = UDim2.new(0.032, 0, 0.1, 0)
+CollectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+CollectButton.BorderSizePixel = 0
+CollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CollectButton.TextScaled = true
+CollectButton.Font = Enum.Font.Highway
+CollectButton.Text = "Collect Coins: OFF"
+CollectButton.Activated:Connect(function()
+	CollectOn = not CollectOn
+	if CollectOn then
+		CollectButton.Text = "Collect Coins: ON"
+	else
+		CollectButton.Text = "Collect Coins: OFF"
+	end
+end)
+
+local CoordMinerButton = Instance.new("TextButton", MainFrame)
+CoordMinerButton.Size = UDim2.new(0.197, 0, 0.033, 0)
+CoordMinerButton.Position = UDim2.new(0.762, 0, 0.144, 0)
+CoordMinerButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+CoordMinerButton.BorderSizePixel = 0
+CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CoordMinerButton.TextScaled = true
+CoordMinerButton.Font = Enum.Font.Highway
+CoordMinerButton.Text = "OFF"
+CoordMinerButton.Activated:Connect(function()
+	CoordMinerOn = not CoordMinerOn
+	if CoordMinerOn then
+		CoordMinerButton.Text = "ON"
+	else
+		CoordMinerButton.Text = "OFF"
+	end
+end)
+
+local ToggleButton = Instance.new("TextButton", ScreenGui)
+ToggleButton.Size = UDim2.new(0, 53, 0, 51)
+ToggleButton.Position = UDim2.new(-0.0007, 0, 0.6601, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Text = ""
+ToggleButton.Activated:Connect(function()
+	MainFrame.Visible = not MainFrame.Visible
+end)
+
+local OresLabel = Instance.new("TextLabel", MainFrame)
+OresLabel.Size = UDim2.new(0.927, 0, 0.354, 0)
+OresLabel.Position = UDim2.new(0.037, 0, 0.363, 0)
+OresLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+OresLabel.BorderSizePixel = 0
+OresLabel.Text = ""
+OresLabel.TextScaled = true
+OresLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+OresLabel.Font = Enum.Font.Highway
+
+local BlocksInMineLabel = Instance.new("TextLabel", MainFrame)
+BlocksInMineLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
+BlocksInMineLabel.Position = UDim2.new(0.037, 0, 0.729, 0)
+BlocksInMineLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+BlocksInMineLabel.BorderSizePixel = 0
+BlocksInMineLabel.Text = "Blocks Until Reset: N/A"
+BlocksInMineLabel.TextScaled = true
+BlocksInMineLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+BlocksInMineLabel.Font = Enum.Font.Highway
+
+local CoordinatesLabel = Instance.new("TextLabel", MainFrame)
+CoordinatesLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
+CoordinatesLabel.Position = UDim2.new(0.037, 0, 0.772, 0)
+CoordinatesLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+CoordinatesLabel.BorderSizePixel = 0
+CoordinatesLabel.Text = ""
+CoordinatesLabel.TextScaled = true
+CoordinatesLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+CoordinatesLabel.Font = Enum.Font.Highway
+
+local PlayerDistanceLabel = Instance.new("TextLabel", MainFrame)
+PlayerDistanceLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
+PlayerDistanceLabel.Position = UDim2.new(0.037, 0, 0.816, 0)
+PlayerDistanceLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+PlayerDistanceLabel.BorderSizePixel = 0
+PlayerDistanceLabel.Text = ""
+PlayerDistanceLabel.TextScaled = true
+PlayerDistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerDistanceLabel.Font = Enum.Font.Highway
+
+-- Coordinates calculation (death safe)
+local function getBlockCoordinates(position)
+	local x = math.floor(position.X / 6)
+	local z = math.floor(position.Z / 6)
+	local depth = math.floor((5000 - position.Y) / 6)
+	if depth < 0 then depth = 0 end
+	return x, depth, z
+end
+
+local function getCharacter()
+	-- Wait for character respawn if it's gone
+	if not Player.Character then
+		Player.CharacterAdded:Wait()
+	end
+
+	-- Wait for HRP in the new character
+	local char = Player.Character
+	local hrp = char:WaitForChild("HumanoidRootPart", 10) -- 10 sec timeout
+	return char, hrp
+end
+
+-- Auto-equip Pickaxe on spawn
+local function equipPickaxe(char)
+	task.spawn(function()
+		local backpack = Player:WaitForChild("Backpack")
+		local humanoid = char:WaitForChild("Humanoid")
+		while humanoid and humanoid.Parent do
+			local tool = backpack:FindFirstChild("Pickaxe")
+			if tool and not char:FindFirstChild("Pickaxe") then
+				humanoid:EquipTool(tool)
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+if Player.Character then equipPickaxe(Player.Character) end
+Player.CharacterAdded:Connect(equipPickaxe)
+
+-- Inventory cleanup
+local function checkInventory()
+	local ok, err = pcall(function()
+		local label = Player.PlayerGui:WaitForChild("ScreenGui"):WaitForChild("Inventory"):WaitForChild("Amount")
+		if label and label:IsA("TextLabel") then
+			local text = label.Text:gsub("%s+", ""):gsub(",", "")
+			local current, max = text:match("^(%d+)/(%d+)$")
+			current, max = tonumber(current), tonumber(max)
+			if current and max and current >= max then
+				MoveAllItems:InvokeServer()
+			end
+		end
+	end)
+	if not ok then warn("Empty Inventory Failed: ", err) end
+end
+
+local function checkPlayerDistance(object)
+	local closestDistance = 999999
+	for _, plr in pairs(Players:GetChildren()) do
+		if plr ~= Player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			if (object.Position - plr.Character.HumanoidRootPart.Position).Magnitude < closestDistance then
+				closestDistance = (object.Position - plr.Character.HumanoidRootPart.Position).Magnitude
+			end
+		end
+	end
+	return math.round(closestDistance)
+end
+
+local function tpBack()
+	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
+		if v.Owner.Value == Player then
+
+			local char, hrp = getCharacter()
+			if char and hrp then
+				-- Unanchor so touched fires
+				hrp.Anchored = false
+
+				hrp.CFrame = v.Spawn.CFrame
+
+				task.wait(0.2)
+
+				hrp.Anchored = true
+			end
+		end
+	end
+end
+
+-- Wait for ore mined (safe)
+local function waitForOreMined(ore)
+	if not ore then return end
+	local mined = false
+
+	local conn
+	conn = ore.AncestryChanged:Connect(function(_, parent)
+		if not parent then mined = true conn:Disconnect() end
+	end)
+
+	local progressBar
+	local selectedOreBox
+	pcall(function()
+		progressBar = Player.PlayerGui:WaitForChild("ScreenGui"):WaitForChild("SelectedItem"):WaitForChild("ProgressBar")
+		selectedOreBox = Player.PlayerGui:WaitForChild("ScreenGui"):WaitForChild("SelectedOre")
+	end)
+
+	local startCheck = tick()
+	while progressBar.Visible == false do
+		task.wait(0.1)
+		if tick() - startCheck > 0.5 then
+			break
+		end
+	end
+
+	if progressBar.Visible then
+		local progressFrame = progressBar:FindFirstChild("Frame")
+		local lastSize = progressFrame and progressFrame.Size.X.Scale or 0
+		local lastChange = tick()
+
+		repeat
+			task.wait(0.1)
+			
+			if selectedOreBox and selectedOreBox.Color == Color3.new(1, 0.7, 0.3) then
+				print("Broken ore, skipping")
+				ore:Destroy()
+				break
+			end
+
+			if PlayerDetectionOn and checkPlayerDistance(ore) < SafetyDistance then
+				print("Player too close, skipping ore")
+				tpBack()
+				break
+			end
+
+			if #workspace.Mine:GetChildren() >= BlocksToReset then
+				print("Mine resetting, stopped mining")
+				break
+			end
+
+			if progressFrame then
+				local currentSize = progressFrame.Size.X.Scale
+				if math.abs(currentSize - lastSize) > 0.001 then
+					lastSize = currentSize
+					lastChange = tick()
+				elseif tick() - lastChange > 10 then
+					print("Progress stuck, skipping ore")
+					ore:Destroy() -- delete stuck ore
+					break
+				end
+			end
+		until mined or AutoOresOn == false or not progressBar.Visible
+	end
+
+	if not mined and conn then conn:Disconnect() end
+end
+
+-- Ore priorities
+local function getOrePriorities()
+	local ores = {}
+	for oreName in string.gmatch(OreInput.Text, "([^,]+)") do
+		oreName = oreName:gsub("^%s+", ""):gsub("%s+$", "")
+		table.insert(ores, oreName)
+	end
+	return ores
+end
+
+-- Count ores
+local function countOres(orePriorities)
+	local counts = {}
+	for _, oreName in ipairs(orePriorities) do
+		counts[oreName] = 0
+	end
+	for _, block in pairs(workspace.Mine:GetChildren()) do
+		if counts[block.Name] ~= nil then
+			counts[block.Name] += 1
+		end
+	end
+	return counts
+end
+
+-- Update ore label
+local function updateOreLabel()
+	local orePriorities = getOrePriorities()
+	local counts = countOres(orePriorities)
+	local displayText = ""
+	for _, oreName in ipairs(orePriorities) do
+		displayText ..= oreName .. ": " .. tostring(counts[oreName]) .. "\n"
+	end
+	OresLabel.Text = displayText ~= "" and displayText or "No ores selected"
+end
+
+-- Coordinates updater (safe)
+task.spawn(function()
+	while task.wait(0.2) do
+		if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+			local pos = Player.Character.HumanoidRootPart.Position
+			local x, y, z = getBlockCoordinates(pos)
+			CoordinatesLabel.Text = "Coords: ("..x..", "..y..", "..z..")"
+			
+			PlayerDistanceLabel.Text = "Distance To Player: "..tostring(checkPlayerDistance(Player.Character.HumanoidRootPart))
+		else
+			CoordinatesLabel.Text = "Coords: N/A"
+			PlayerDistanceLabel.Text = "Distance To Player: N/A"
+		end
+		BlocksInMineLabel.Text = "Blocks Until Reset: "..tostring(BlocksToReset - #workspace.Mine:GetChildren())
+		updateOreLabel()
+	end
+end)
+
+-- Teleport safely with velocity reset
+local function safeTeleportToOre(hrp, ore)
+	-- Reset physics first
+	hrp.Velocity = Vector3.zero
+	hrp.RotVelocity = Vector3.zero
+
+	-- Unanchor, move, then re-anchor
+	hrp.Anchored = false
+	hrp.CFrame = ore.CFrame
+	task.wait() -- let physics update
+
+	-- Zero velocity again after teleport, just in case
+	hrp.Velocity = Vector3.zero
+	hrp.RotVelocity = Vector3.zero
+end
+
+local function collectCoins()
+	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
+		if v.Owner.Value == Player then
+			local coins = v.Items.Mine.Pad.BillboardGui.Amount.Text:gsub("%D", "")
+			if tonumber(coins) and tonumber(coins) > CollectThreshold then
+				local char, hrp = getCharacter()
+				if char and hrp then
+					-- Unanchor so touched fires
+					hrp.Anchored = false
+
+					-- Teleport slightly inside pad
+					hrp.CFrame = v.Items.Mine.Pad.CFrame
+
+					task.wait(0.5) -- give time to register touch
+
+					-- Re-anchor for mining stability
+					hrp.Anchored = true
+				end
+			end
+		end
+	end
+end
+
+local function parseCoords(input)
+	local parts = {}
+	for part in string.gmatch(input, "([^,]+)") do
+		part = part:gsub("%s+", "")
+		table.insert(parts, part)
+	end
+
+	if #parts ~= 3 then return nil end
+
+	local x, y, z = parts[1], parts[2], parts[3]
+
+	local char, hrp = getCharacter()
+	if not char or not hrp then return nil end
+	local cx, cy, cz = getBlockCoordinates(hrp.Position)
+
+	-- Convert to target values (keep if "x")
+	x = (x == "x" or x == "X") and cx or tonumber(x)
+	y = (y == "x" or y == "X") and cy or tonumber(y)
+	z = (z == "x" or z == "X") and cz or tonumber(z)
+
+	return x, y, z
+end
+
+
+local function mineToCoords(targetX, targetY, targetZ)
+	local char, hrp = getCharacter()
+	if not char or not hrp then return end
+
+	local cx, cy, cz = getBlockCoordinates(hrp.Position)
+
+	-- Dig down/up first (priority: depth)
+	if cy ~= targetY then
+		local direction = (cy < targetY) and -1 or 1
+		-- mine blocks until depth == targetY
+		return Vector3.new(cx, cy + direction, cz)
+	end
+
+	-- Then move X axis
+	if cx ~= targetX then
+		local direction = (cx < targetX) and 1 or -1
+		return Vector3.new(cx + direction, cy, cz)
+	end
+
+	-- Then move Z axis
+	if cz ~= targetZ then
+		local direction = (cz < targetZ) and 1 or -1
+		return Vector3.new(cx, cy, cz + direction)
+	end
+
+	return nil -- reached goal
+end
+
+-- === Helpers for Coord Miner empty-space handling ===
+local function gridToWorld(x, y, z)
+	return Vector3.new(x * 6, 5000 - y * 6, z * 6)
+end
+
+local overlapParams do
+	overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.OverlapFilterType.Whitelist
+	overlapParams.FilterDescendantsInstances = {workspace.Mine}
+	overlapParams.MaxParts = 20
+end
+
+local function findBlockAtGrid(x, y, z)
+	local center = gridToWorld(x, y, z)
+	local parts = workspace:GetPartBoundsInBox(CFrame.new(center), Vector3.new(5.8, 5.8, 5.8), overlapParams)
+	for _, p in ipairs(parts) do
+		if p and p.Parent == workspace.Mine and not p:FindFirstChild("Claimed") then
+			return p
+		end
+	end
+	return nil
+end
+
+-- Scan forward up to N grid cells along the step direction; return first solid block (or nil)
+local function findFirstSolidOnPath(fromCell, toCell, maxLookahead)
+	local dx = math.clamp(toCell.X - fromCell.X, -1, 1)
+	local dy = math.clamp(toCell.Y - fromCell.Y, -1, 1)
+	local dz = math.clamp(toCell.Z - fromCell.Z, -1, 1)
+
+	for step = 1, maxLookahead do
+		local cx, cy, cz = fromCell.X + dx * step, fromCell.Y + dy * step, fromCell.Z + dz * step
+		local block = findBlockAtGrid(cx, cy, cz)
+		if block then
+			return block, {X = cx, Y = cy, Z = cz}
+		end
+	end
+	return nil, {X = toCell.X, Y = toCell.Y, Z = toCell.Z}
+end
+
+local function stepToGridCell(hrp, x, y, z)
+	local pos = gridToWorld(x, y, z)
+	hrp.Velocity = Vector3.zero
+	hrp.RotVelocity = Vector3.zero
+	hrp.Anchored = false
+	hrp.CFrame = CFrame.new(pos)
+
+	if platform and platform.Parent then platform:Destroy() end
+	platform = Instance.new("Part")
+	platform.Size = Vector3.new(4, 1, 4)
+	platform.Position = pos - Vector3.new(0, 3, 0)
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Transparency = 0
+	platform.Parent = workspace
+
+	task.wait(0.1)
+	hrp.Anchored = true
+end
+
+-- MAIN LOOP (death safe)
+task.spawn(function()
+	while task.wait(0.3) do
+		local char, hrp = getCharacter()
+		if not char or not hrp then
+			continue -- failsafe if HRP never appears
+		end
+
+		-- =======================
+		-- Mine reset check
+		-- =======================
+		local blocksInMine = #workspace.Mine:GetChildren()
+		if blocksInMine >= BlocksToReset then
+			tpBack()
+			continue
+		end
+
+		-- =======================
+		-- Step 1: Auto Ores
+		-- =======================
+		if AutoOresOn then
+			local orePriorities = getOrePriorities()
+			local oresFound = {}
+			for _, ore in pairs(workspace.Mine:GetChildren()) do
+				if table.find(orePriorities, ore.Name) and checkPlayerDistance(ore) > SafetyDistance then
+					table.insert(oresFound, {ore = ore, priority = table.find(orePriorities, ore.Name)})
+				end
+			end
+
+			table.sort(oresFound, function(a, b)
+				if a.priority ~= b.priority then
+					return a.priority < b.priority
+				end
+				return a.ore.Position.Y > b.ore.Position.Y
+			end)
+
+			local mined = false
+			for _, entry in ipairs(oresFound) do
+				local ore = entry.ore
+				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then 
+					continue 
+				end
+				if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then break end
+
+				local tool = Player.Character:FindFirstChild("Pickaxe")
+				if not tool then break end
+
+				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
+				if platform and platform.Parent then platform:Destroy() end
+
+				Player.Character.Torso.CanCollide = false
+				Player.Character.Head.CanCollide = false
+				safeTeleportToOre(Player.Character.HumanoidRootPart, ore)
+
+				platform = Instance.new("Part")
+				platform.Size = Vector3.new(4, 1, 4)
+				platform.Position = Player.Character.HumanoidRootPart.Position - Vector3.new(0, 3, 0)
+				platform.Anchored = true
+				platform.CanCollide = true
+				platform.Transparency = 0
+				platform.Parent = workspace
+
+				task.wait(0.2)
+				if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+					Player.Character.HumanoidRootPart.Anchored = true
+				end
+
+				workspace.CurrentCamera.SelectedItem.Value = ore
+				tool.SetTarget:InvokeServer(ore)
+				tool.Activation:FireServer(true)
+
+				waitForOreMined(ore)
+
+				tool.Activation:FireServer(false)
+				checkInventory()
+
+				mined = true
+				break
+			end
+
+			-- If mined something, skip CoordMiner this cycle
+			if mined then continue end
+		end
+
+		-- =======================
+		-- Step 2: Coord Miner (robust through caves/empty space)
+		-- =======================
+		if CoordMinerOn then
+			local targetX, targetY, targetZ = parseCoords(CoordMinerInput.Text)
+			if not targetX then
+				-- Bad/empty input; skip
+				continue
+			end
+
+			-- Decide next 1-cell move toward the target (your existing helper)
+			local nextStep = mineToCoords(targetX, targetY, targetZ)
+			if not nextStep then
+				-- Goal reached
+				CoordMinerOn = false
+				CoordMinerButton.Text = "OFF"
+				continue
+			end
+
+			-- Where are we on the grid right now?
+			local curX, curY, curZ = getBlockCoordinates(hrp.Position)
+
+			-- Look ahead a few cells (tunnels/caves) for the next solid block
+			local lookaheadCells = 8
+			local targetBlock, cellHit = findFirstSolidOnPath({X = curX, Y = curY, Z = curZ}, nextStep, lookaheadCells)
+
+			if targetBlock then
+				-- Mine the next solid block we found ahead
+				safeTeleportToOre(hrp, targetBlock)
+
+				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
+				if tool then
+					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
+
+					if platform and platform.Parent then platform:Destroy() end
+					platform = Instance.new("Part")
+					platform.Size = Vector3.new(4, 1, 4)
+					platform.Position = hrp.Position - Vector3.new(0, 3, 0)
+					platform.Anchored = true
+					platform.CanCollide = true
+					platform.Transparency = 0
+					platform.Parent = workspace
+
+					task.wait(0.2)
+					if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+						Player.Character.HumanoidRootPart.Anchored = true
+					end
+
+					workspace.CurrentCamera.SelectedItem.Value = targetBlock
+					tool.SetTarget:InvokeServer(targetBlock)
+					tool.Activation:FireServer(true)
+					waitForOreMined(targetBlock)
+					tool.Activation:FireServer(false)
+				end
+			else
+				-- No solid block within lookahead; just advance into empty cell (tunnel)
+				stepToGridCell(hrp, nextStep.X, nextStep.Y, nextStep.Z)
+			end
+		end
+
+		
+		if CollectOn then
+			task.wait(0.5)
+			collectCoins()
+		end
+	end
+end)
