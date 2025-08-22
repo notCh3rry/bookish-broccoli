@@ -1,3 +1,5 @@
+print("v1")
+
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
 
@@ -423,11 +425,11 @@ local function safeTeleportToOre(ore)
 	local platformPosition = ore.Position - Vector3.new(0, 3, 0) -- default
 	local ignoreList = {ore}
 
-	if #nearbyEntities > 0 then
+	--if #nearbyEntities > 0 then
 		-- Ray directions
 		local directions = {
-			Vector3.new(0, -200, 0), -- down
-			Vector3.new(0, 200, 0),  -- up
+			Vector3.new(0, -150, 0), -- down
+			Vector3.new(0, 150, 0),  -- up
 			Vector3.new(6, 0, 0), Vector3.new(-6, 0, 0), -- left/right
 			Vector3.new(0, 0, 6), Vector3.new(0, 0, -6)  -- forward/back
 		}
@@ -456,7 +458,7 @@ local function safeTeleportToOre(ore)
 			platformPosition = ore.Position - Vector3.new(0, 3, 0)
 			print("middle under")
 		end
-	end
+	--end
 
 	-- Place platform before teleport
 	if platform and platform.Parent then platform:Destroy() end
@@ -692,3 +694,4 @@ task.spawn(function()
 		end
 	end
 end)
+
