@@ -1,4 +1,4 @@
-print("v1")
+print("v2")
 
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
@@ -18,6 +18,10 @@ local MoveAllItems = ReplicatedStorage:WaitForChild("MoveAllItems")
 local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
+
+local UP_CHECK = 200
+local DOWN_CHECK = 200
+local STAND_OFFSET = 5
 
 local coordMinerState = {
 	currentX = nil,
@@ -406,87 +410,70 @@ task.spawn(function()
 end)
 
 -- Teleport safely with velocity reset
+
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
-	if not hrp or not char then return end
+	if not hrp or not char or not ore or not ore.Parent then return end
 
-	-- Detect nearby entities
-	local nearbyEntities = {}
-	if workspace:FindFirstChild("Entities") then
-		for _, ent in pairs(workspace.Entities:GetChildren()) do
-			if ent:FindFirstChild("Torso") then
-				if (ent.Torso.Position - ore.Position).Magnitude <= 100 then
-					table.insert(nearbyEntities, ent)
-				end
-			end
-		end
+	local ignoreList = {ore, char}
+	if platform and platform.Parent then
+		table.insert(ignoreList, platform)
 	end
 
-	local platformPosition = ore.Position - Vector3.new(0, 3, 0) -- default
-	local ignoreList = {ore}
+	-- Raycast params
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignoreList
+	params.IgnoreWater = true
 
-	--if #nearbyEntities > 0 then
-		-- Ray directions
-		local directions = {
-			Vector3.new(0, -150, 0), -- down
-			Vector3.new(0, 150, 0),  -- up
-			Vector3.new(6, 0, 0), Vector3.new(-6, 0, 0), -- left/right
-			Vector3.new(0, 0, 6), Vector3.new(0, 0, -6)  -- forward/back
-		}
+	local origin = ore.Position
+	local upResult = workspace:Raycast(origin, Vector3.new(0, UP_CHECK, 0), params)
+	local downResult = workspace:Raycast(origin, Vector3.new(0, -DOWN_CHECK, 0), params)
 
-		local hits = {}
-		for _, dir in ipairs(directions) do
-			local ray = Ray.new(ore.Position, dir)
-			local hitPart, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
-			table.insert(hits, {dir = dir, hitPart = hitPart})
-		end
+	local platformPos
+	if downResult and not upResult then
+		-- Ore on cave ceiling → teleport ABOVE ceiling
+		platformPos = downResult.Position + Vector3.new(0, STAND_OFFSET, 0)
+		print("Ore on roof, teleporting above ceiling")
+	elseif upResult and not downResult then
+		-- Ore on cave floor → teleport BELOW floor
+		platformPos = upResult.Position - Vector3.new(0, STAND_OFFSET, 0)
+		print("Ore on floor, teleporting below floor")
+	elseif upResult and downResult then
+		-- Enclosed → default to teleport BELOW floor
+		platformPos = upResult.Position - Vector3.new(0, STAND_OFFSET, 0)
+		print("Ore enclosed, teleporting below block")
+	else
+		-- No hits (exposed ore) → just above ore
+		platformPos = origin + Vector3.new(0, STAND_OFFSET, 0)
+		print("Ore exposed, teleporting above ore")
+	end
 
-		-- Determine cave orientation
-		local hitDown = hits[1].hitPart ~= nil
-		local hitUp = hits[2].hitPart ~= nil
-
-		if hitDown and not hitUp then
-			-- Ore is on cave floor -> teleport under the block
-			platformPosition = ore.Position - Vector3.new(0, 3, 0)
-			print("under")
-		elseif hitUp and not hitDown then
-			-- Ore is on cave ceiling -> teleport above the block
-			platformPosition = ore.Position + Vector3.new(0, 3, 0)
-			print("over")
-		elseif hitDown and hitUp then
-			-- Ore is inside a cave -> choose middle above floor
-			platformPosition = ore.Position - Vector3.new(0, 3, 0)
-			print("middle under")
-		end
-	--end
-
-	-- Place platform before teleport
+	-- --- Place platform BEFORE teleport ---
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
 	platform.Size = Vector3.new(4, 1, 4)
-	platform.Position = platformPosition
+	platform.CFrame = CFrame.new(platformPos)
 	platform.Anchored = true
 	platform.CanCollide = true
 	platform.Transparency = 1
+	platform.Name = "TPPlatform"
 	platform.Parent = workspace
 
-	-- Reset physics
+	-- --- Teleport player onto the platform ---
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
-	char.Torso.CanCollide = false
-	char.Head.CanCollide = false
+	if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
+	if char:FindFirstChild("Head") then char.Head.CanCollide = false end
 	hrp.Anchored = false
 
-	-- Teleport player to platform
-	hrp.CFrame = CFrame.new(platformPosition + Vector3.new(0, 2, 0)) -- slightly above platform
+	hrp.CFrame = CFrame.new(platformPos + Vector3.new(0, 2, 0))
 	task.wait(0.2)
 
-	-- Ensure physics reset
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
 	hrp.Anchored = true
 end
-
 
 local function collectCoins()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
