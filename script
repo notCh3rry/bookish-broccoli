@@ -19,8 +19,8 @@ local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
 
-local ADJ_CHECK = 8     -- how far to look for immediate block adjacency (studs)
-local STAND_OFFSET = 5  -- how far to stand above/below the surface (studs)
+local RAY_LENGTH = 100 -- how far to scan up/down
+local STAND_OFFSET = 5   -- how far to stand away from surface (studs)
 
 local coordMinerState = {
 	currentX = nil,
@@ -412,83 +412,79 @@ end)
 
 -- Tunables
 
+-- Tunables
+
+
+local function makeDebugPart(position, color)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.Size = Vector3.new(1,1,1)
+	part.Shape = Enum.PartType.Ball
+	part.Color = color
+	part.Material = Enum.Material.Neon
+	part.Position = position
+	part.Parent = workspace
+	game:GetService("Debris"):AddItem(part, 5) -- auto-remove after 5 sec
+end
+
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
 
-	-- Optional: only do cave-escape logic if entities are nearby (100 studs)
-	local entitiesNearby = false
-	if workspace:FindFirstChild("Entities") then
-		for _, ent in ipairs(workspace.Entities:GetChildren()) do
-			local torso = ent:FindFirstChild("Torso") or ent:FindFirstChild("HumanoidRootPart")
-			if torso and (torso.Position - ore.Position).Magnitude <= 100 then
-				entitiesNearby = true
-				break
-			end
-		end
-	end
-
-	-- Raycast only against mine blocks (avoids player, platform, entities, etc.)
 	local mineFolder = workspace:FindFirstChild("Mine") or workspace
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = {mineFolder}
 	params.IgnoreWater = true
 
-	-- Start probes *just* outside the ore so we don't ever hit the ore itself
+	-- Origins slightly offset from ore so we don't raycast into the ore itself
 	local sizeY = (ore.Size and ore.Size.Y) or 6
 	local aboveOrigin = ore.Position + Vector3.new(0, sizeY/2 + 0.2, 0)
 	local belowOrigin = ore.Position - Vector3.new(0, sizeY/2 + 0.2, 0)
 
-	local upAdj   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  ADJ_CHECK, 0), params)
-	local downAdj = workspace:Raycast(belowOrigin,  Vector3.new(0, -ADJ_CHECK, 0), params)
+	local upResult   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  RAY_LENGTH, 0), params)
+	local downResult = workspace:Raycast(belowOrigin,  Vector3.new(0, -RAY_LENGTH, 0), params)
+
+	-- Debug visualize raycast hits
+	if upResult then
+		makeDebugPart(upResult.Position, Color3.fromRGB(0,255,0)) -- green for up hit
+	else
+		makeDebugPart(aboveOrigin + Vector3.new(0,RAY_LENGTH,0), Color3.fromRGB(255,255,255))
+	end
+	if downResult then
+		makeDebugPart(downResult.Position, Color3.fromRGB(255,0,0)) -- red for down hit
+	else
+		makeDebugPart(belowOrigin - Vector3.new(0,RAY_LENGTH,0), Color3.fromRGB(255,255,255))
+	end
 
 	local platformPos
 
-	if entitiesNearby then
-		-- Correct cave-orientation mapping:
-		--  * up-only  -> ceiling ore  -> go ABOVE ceiling
-		--  * down-only-> floor ore    -> go BELOW floor
-		--  * both     -> enclosed     -> prefer BELOW floor (safer)
-		--  * neither  -> exposed      -> above ore
-		if upAdj and not downAdj then
-			-- Ceiling → stand on top of that ceiling block
-			local inst = upAdj.Instance
-			platformPos = Vector3.new(
-				ore.Position.X,
-				inst.Position.Y + inst.Size.Y/2 + STAND_OFFSET,
-				ore.Position.Z
-			)
-			print("floor")
-		elseif downAdj and not upAdj then
-			-- Floor → go below the floor block
-			local inst = downAdj.Instance
-			platformPos = Vector3.new(
-				ore.Position.X,
-				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
-				ore.Position.Z
-			)
-			print("ceil")
-		elseif upAdj and downAdj then
-			-- Enclosed → default below the floor block
-			local inst = downAdj.Instance
-			platformPos = Vector3.new(
-				ore.Position.X,
-				inst.Position.Y - inst.Size.Y/2 - STAND_OFFSET,
-				ore.Position.Z
-			)
-			print("both hit floor")
-		else
-			-- Exposed ore → simple safe spot just above
-			platformPos = ore.Position + Vector3.new(0, STAND_OFFSET, 0)
-			print("none hit")
-		end
+	if upResult and not downResult then
+		-- Ceiling ore → teleport above ceiling block
+		local inst = upResult.Instance
+		local surfaceY = upResult.Position.Y + inst.Size.Y/2
+		platformPos = Vector3.new(ore.Position.X, surfaceY + STAND_OFFSET, ore.Position.Z)
+		print("Ceiling ore -> above")
+	elseif downResult and not upResult then
+		-- Floor ore → teleport below floor block
+		local inst = downResult.Instance
+		local surfaceY = downResult.Position.Y - inst.Size.Y/2
+		platformPos = Vector3.new(ore.Position.X, surfaceY - STAND_OFFSET, ore.Position.Z)
+		print("Floor ore -> below")
+	elseif upResult and downResult then
+		-- Both surfaces found → assume inside cave, go below floor
+		local inst = downResult.Instance
+		local surfaceY = downResult.Position.Y - inst.Size.Y/2
+		platformPos = Vector3.new(ore.Position.X, surfaceY - STAND_OFFSET, ore.Position.Z)
+		print("Enclosed -> below")
 	else
-		-- No entities nearby: simple placement above ore
+		-- Exposed ore (no surfaces) → stand just above
 		platformPos = ore.Position + Vector3.new(0, STAND_OFFSET, 0)
+		print("Exposed -> above")
 	end
 
-	-- Build platform BEFORE teleport
+	-- Spawn platform first
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
 	platform.Name = "TPPlatform"
@@ -499,7 +495,7 @@ local function safeTeleportToOre(ore)
 	platform.Transparency = 1
 	platform.Parent = workspace
 
-	-- Teleport on top of platform
+	-- Teleport player
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
 	if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
@@ -507,12 +503,13 @@ local function safeTeleportToOre(ore)
 	hrp.Anchored = false
 
 	hrp.CFrame = CFrame.new(platformPos + Vector3.new(0, 2, 0))
-	task.wait(0.2)
+	task.wait(0.1)
 
 	hrp.Velocity = Vector3.zero
 	hrp.RotVelocity = Vector3.zero
 	hrp.Anchored = true
 end
+
 
 local function collectCoins()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
