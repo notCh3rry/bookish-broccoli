@@ -594,15 +594,22 @@ task.spawn(function()
 		-- CoordMiner
 		if CoordMinerOn and AvailableOres <= 1 then
 			-- Init state
+			-- CoordMiner initialization (inside your main loop)
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
 				if not tx then 
+					print("bad input")
 					CoordMinerOn = false
 					CoordMinerButton.Text = "OFF"
 					CoordMinerInput.TextEditable = true
 					local char, hrp = getCharacter()
 					if hrp then hrp.Anchored = false end
-					coordMinerState = {currentX=nil,currentY=nil,currentZ=nil,targetX=nil,targetY=nil,targetZ=nil,active=false}
+
+					coordMinerState = {
+						currentX = nil, currentY = nil, currentZ = nil,
+						targetX = nil, targetY = nil, targetZ = nil,
+						active = false
+					}
 					continue 
 				end
 
@@ -610,28 +617,27 @@ task.spawn(function()
 				coordMinerState.targetY = ty
 				coordMinerState.targetZ = tz
 
-				-- find closest mined block to goal, not to player
-				local function getClosestToGoal(tx,ty,tz)
-					local goalPos = Vector3.new((tx-0.5)*6, 5000 - (ty-0.5)*6, (tz-0.5)*6)
-					local closest, bestDist
-					for _, block in pairs(workspace.Mine:GetChildren()) do
-						local dist = (block.Position - goalPos).Magnitude
-						if not bestDist or dist < bestDist then
-							bestDist = dist
-							closest = block
+				-- Find the block closest to the goal
+				local closestDist = math.huge
+				local startBlock
+				for _, block in pairs(workspace.Mine:GetChildren()) do
+					if block and block.Parent and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
+						local bx, by, bz = math.floor(block.Position.X/6 + 0.5), math.floor((5000 - block.Position.Y)/6 + 0.5), math.floor(block.Position.Z/6 + 0.5)
+						local dist = (Vector3.new(bx, by, bz) - Vector3.new(tx, ty, tz)).Magnitude
+						if dist < closestDist then
+							closestDist = dist
+							startBlock = block
+							coordMinerState.currentX = bx
+							coordMinerState.currentY = by
+							coordMinerState.currentZ = bz
 						end
 					end
-					return closest
 				end
 
-				local startBlock = getClosestToGoal(tx,ty,tz)
-				if startBlock and startBlock.Parent then
-					local pos = startBlock.Position
-					coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
-					coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
-					coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
-					coordMinerState.active = true
+				coordMinerState.active = true
 
+				-- Teleport to closest block to goal if found
+				if startBlock and startBlock.Parent then
 					safeTeleportToOre(startBlock)
 				end
 			end
