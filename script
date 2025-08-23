@@ -1,7 +1,9 @@
-print("v9")
+print("v10")
 
-loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
-loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
+spawn(function()
+	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
+	loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
+end)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,10 +21,6 @@ local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
 
-local RAY_LENGTH = 100
-local OFFSET = 6   -- how far to stand above/below ore
-local UNDEROFFSET = 10
-
 local coordMinerState = {
 	currentX = nil,
 	currentY = nil,
@@ -34,6 +32,18 @@ local coordMinerState = {
 }
 
 game.Workspace:WaitForChild("Players"):WaitForChild("Chryslixm"):WaitForChild("AnomalyRunner"):Destroy()
+
+local function getCharacter()
+	-- Wait for character respawn if it's gone
+	if not Player.Character then
+		Player.CharacterAdded:Wait()
+	end
+
+	-- Wait for HRP in the new character
+	local char = Player.Character
+	local hrp = char:WaitForChild("HumanoidRootPart", 10) -- 10 sec timeout
+	return char, hrp
+end
 
 -- UI Setup (same as before)
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
@@ -147,9 +157,24 @@ CoordMinerButton.Activated:Connect(function()
 	CoordMinerOn = not CoordMinerOn
 	if CoordMinerOn then
 		CoordMinerButton.Text = "ON"
+		CoordMinerInput.TextEditable = false
 	else
 		CoordMinerButton.Text = "OFF"
-		Player.Character.HumanoidRootPart.Anchored = false
+		CoordMinerInput.TextEditable = true
+		local char, hrp = getCharacter()
+		if hrp then
+			hrp.Anchored = false
+		end
+
+		coordMinerState = {
+			currentX = nil,
+			currentY = nil,
+			currentZ = nil,
+			targetX = nil,
+			targetY = nil,
+			targetZ = nil,
+			active = false
+		}
 	end
 end)
 
@@ -210,18 +235,6 @@ local function getBlockCoordinates(position)
 	local depth = math.floor((5000 - position.Y) / 6)
 	if depth < 0 then depth = 0 end
 	return x, depth, z
-end
-
-local function getCharacter()
-	-- Wait for character respawn if it's gone
-	if not Player.Character then
-		Player.CharacterAdded:Wait()
-	end
-
-	-- Wait for HRP in the new character
-	local char = Player.Character
-	local hrp = char:WaitForChild("HumanoidRootPart", 10) -- 10 sec timeout
-	return char, hrp
 end
 
 -- Auto-equip Pickaxe on spawn
@@ -413,67 +426,8 @@ local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
 	
-	--[[local hasEntitiesNearby = false
-	if workspace:FindFirstChild("Entities") then
-		for _, ent in pairs(workspace.Entities:GetChildren()) do
-			if ent:FindFirstChild("Torso") then
-				if (ent.Torso.Position - ore.Position).Magnitude <= 150 then
-					hasEntitiesNearby = true
-				end
-			end
-		end
-	end]]
-	
 	local platformPos = ore.Position - Vector3.new(0, 3, 0)
 	
-	--[[if hasEntitiesNearby then
-		local mineFolder = workspace:FindFirstChild("Mine") or workspace
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = {mineFolder}
-		params.IgnoreWater = true
-
-		-- Origins slightly offset to avoid hitting the ore itself
-		local sizeY = (ore.Size and ore.Size.Y) or 6
-		local aboveOrigin = ore.Position + Vector3.new(0, sizeY/2 + 0.2, 0)
-		local belowOrigin = ore.Position - Vector3.new(0, sizeY/2 + 0.2, 0)
-
-		local upResult   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  RAY_LENGTH, 0), params)
-		local downResult = workspace:Raycast(belowOrigin,  Vector3.new(0, -RAY_LENGTH, 0), params)
-
-		if upResult and downResult then
-			local upDist   = (upResult.Position - ore.Position).Magnitude
-			local downDist = (downResult.Position - ore.Position).Magnitude
-
-			if upDist > downDist then
-				-- Closer to floor → floor ore
-				platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
-				print("Ceiling ore -> above")
-			elseif downDist > upDist then
-				-- Closer to ceiling → ceiling ore
-				platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-				print("Floor ore -> under")
-			else
-				-- Same distance → default under
-				platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-				print("Equal dist -> under")
-			end
-		elseif upResult and not downResult then
-			-- Only ceiling detected
-			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-			print("Floor ore -> under (only)")
-		elseif downResult and not upResult then
-			-- Only floor detected
-			platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
-			print("Ceiling ore -> above (only)")
-		else
-			-- No hits, exposed ore
-			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-			print("Exposed ore -> under")
-		end
-	end]]
-	
-	-- Place platform
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
 	platform.Name = "TPPlatform"
@@ -616,9 +570,9 @@ task.spawn(function()
 			tpBack()
 			continue
 		end
-
+		
+		local AvailableOres = 0
 		-- AutoOres
-		local minedOreThisCycle = false
 		if AutoOresOn then
 			local orePriorities = getOrePriorities()
 			local oresFound = {}
@@ -627,6 +581,7 @@ task.spawn(function()
 					table.insert(oresFound, {ore = ore, priority = table.find(orePriorities, ore.Name)})
 				end
 			end
+			AvailableOres = #oresFound
 			table.sort(oresFound, function(a,b)
 				if a.priority ~= b.priority then return a.priority < b.priority end
 				return a.ore.Position.Y > b.ore.Position.Y
@@ -650,13 +605,12 @@ task.spawn(function()
 				tool.Activation:FireServer(false)
 				checkInventory()
 
-				minedOreThisCycle = true
 				break
 			end
 		end
 
 		-- CoordMiner
-		if CoordMinerOn and not minedOreThisCycle then
+		if CoordMinerOn and AvailableOres <= 1 then
 			-- Init state
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
@@ -711,14 +665,29 @@ task.spawn(function()
 			if reached then
 				CoordMinerOn = false
 				CoordMinerButton.Text = "OFF"
-				coordMinerState.active = false
+				CoordMinerInput.TextEditable = true
+				local char, hrp = getCharacter()
+				if hrp then
+					hrp.Anchored = false
+				end
+				
+				coordMinerState = {
+					currentX = nil,
+					currentY = nil,
+					currentZ = nil,
+					targetX = nil,
+					targetY = nil,
+					targetZ = nil,
+					active = false
+				}
 			end
 		end
 
 		-- Collect coins
 		if CollectOn then
-			task.wait(0.5)
+			task.wait(0.1)
 			collectCoins()
 		end
 	end
 end)
+
