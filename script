@@ -1,4 +1,4 @@
-print("v13")
+print("v14")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -576,7 +576,7 @@ task.spawn(function()
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if not tool then break end
 
-				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
+				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 				safeTeleportToOre(ore)
 				deleteEntities()
 
@@ -688,7 +688,7 @@ task.spawn(function()
 
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if tool then
-					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
+					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 					safeTeleportToOre(nextBlock)
 					deleteEntities()
 
