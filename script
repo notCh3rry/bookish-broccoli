@@ -1,4 +1,4 @@
-print("v14")
+print("v15")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -123,6 +123,14 @@ AutoOresButton.Activated:Connect(function()
 	else
 		AutoOresButton.Text = "Auto Ores: OFF"
 		Player.Character.HumanoidRootPart.Anchored = false
+		
+		local char, hrp = getCharacter()
+		if not char or not hrp then return end
+		
+		local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
+		if not tool then return end
+
+		if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = true end
 	end
 end)
 
