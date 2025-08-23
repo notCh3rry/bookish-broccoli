@@ -648,10 +648,23 @@ task.spawn(function()
 				end
 				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
 
-				local nextBlock = getNextBlock(
-					coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
-					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
-				)
+				local nextBlock
+				repeat
+					nextBlock = getNextBlock(
+						coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
+						coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
+					)
+
+					-- Skip blocks that have PlacedItem
+					if nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")) then
+						-- mark block as "skipped" by temporarily anchoring current coords to it
+						local pos = nextBlock.Position
+						coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
+						coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
+						coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
+						nextBlock = nil  -- force loop to get a new block
+					end
+				until not (nextBlock and nextBlock:FindFirstChild("PlacedItem"))
 
 				-- Goal reached
 				if not nextBlock then
