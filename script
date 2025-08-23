@@ -1,4 +1,4 @@
-print("v15")
+print("v16")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -245,6 +245,45 @@ local function getBlockCoordinates(position)
 	return x, depth, z
 end
 
+local function safeTeleportToObj(obj)
+	local char, hrp = getCharacter()
+	if not hrp or not char or not obj or not obj.Parent then return end
+
+	local platformPos = obj.Position - Vector3.new(0, 3, 0)
+
+	if platform and platform.Parent then platform:Destroy() end
+	platform = Instance.new("Part")
+	platform.Name = "TPPlatform"
+	platform.Size = Vector3.new(4, 1, 4)
+	platform.CFrame = CFrame.new(platformPos)
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Transparency = 1
+	platform.Parent = workspace
+
+	-- Teleport player
+	hrp.Velocity = Vector3.zero
+	hrp.RotVelocity = Vector3.zero
+	if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
+	if char:FindFirstChild("Head") then char.Head.CanCollide = false end
+	hrp.Anchored = false
+
+	hrp.CFrame = CFrame.new(platformPos + Vector3.new(0, 2, 0))
+	task.wait(0.2)
+
+	hrp.Velocity = Vector3.zero
+	hrp.RotVelocity = Vector3.zero
+	hrp.Anchored = true
+end
+
+local function tpBack()
+	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
+		if v.Owner.Value == Player then
+			safeTeleportToObj(v.Spawn)
+		end
+	end
+end
+
 -- Auto-equip Pickaxe on spawn
 local function equipPickaxe(char)
 	task.spawn(function()
@@ -289,25 +328,6 @@ local function checkPlayerDistance(object)
 		end
 	end
 	return math.round(closestDistance)
-end
-
-local function tpBack()
-	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
-		if v.Owner.Value == Player then
-
-			local char, hrp = getCharacter()
-			if char and hrp then
-				-- Unanchor so touched fires
-				hrp.Anchored = false
-
-				hrp.CFrame = v.Spawn.CFrame
-
-				task.wait(0.2)
-
-				hrp.Anchored = true
-			end
-		end
-	end
 end
 
 -- Wait for ore mined (safe)
@@ -417,37 +437,6 @@ local function updateOreLabel()
 	OresLabel.Text = displayText ~= "" and displayText or "No ores selected"
 end
 
-local function safeTeleportToOre(ore)
-	local char, hrp = getCharacter()
-	if not hrp or not char or not ore or not ore.Parent then return end
-	
-	local platformPos = ore.Position - Vector3.new(0, 3, 0)
-	
-	if platform and platform.Parent then platform:Destroy() end
-	platform = Instance.new("Part")
-	platform.Name = "TPPlatform"
-	platform.Size = Vector3.new(4, 1, 4)
-	platform.CFrame = CFrame.new(platformPos)
-	platform.Anchored = true
-	platform.CanCollide = true
-	platform.Transparency = 1
-	platform.Parent = workspace
-
-	-- Teleport player
-	hrp.Velocity = Vector3.zero
-	hrp.RotVelocity = Vector3.zero
-	if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
-	if char:FindFirstChild("Head") then char.Head.CanCollide = false end
-	hrp.Anchored = false
-
-	hrp.CFrame = CFrame.new(platformPos + Vector3.new(0, 2, 0))
-	task.wait(0.2)
-
-	hrp.Velocity = Vector3.zero
-	hrp.RotVelocity = Vector3.zero
-	hrp.Anchored = true
-end
-
 local function deleteEntities()
 	local char, hrp = getCharacter()
 	if not hrp or not char then return end
@@ -485,6 +474,8 @@ local function collectCoins()
 		end
 	end
 end
+
+
 
 local function parseCoords(text)
 	if not text or text == "" then return nil end
@@ -557,7 +548,11 @@ task.spawn(function()
 		-- Mine reset check
 		if #workspace.Mine:GetChildren() >= BlocksToReset then
 			coordMinerState.active = false
-			tpBack()
+			local start = tick()
+			repeat
+				task.wait(0.1)
+				tpBack()
+			until tick() - start >= 45
 			continue
 		end
 		
@@ -585,7 +580,7 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToOre(ore)
+				safeTeleportToObj(ore)
 				deleteEntities()
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
@@ -654,7 +649,7 @@ task.spawn(function()
 
 				-- Teleport to closest block to goal if found
 				if startBlock and startBlock.Parent then
-					safeTeleportToOre(startBlock)
+					safeTeleportToObj(startBlock)
 				end
 			end
 
@@ -697,7 +692,7 @@ task.spawn(function()
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-					safeTeleportToOre(nextBlock)
+					safeTeleportToObj(nextBlock)
 					deleteEntities()
 
 					workspace.CurrentCamera.SelectedItem.Value = nextBlock
