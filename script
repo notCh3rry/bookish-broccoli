@@ -412,54 +412,68 @@ end)
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
-
-	local mineFolder = workspace:FindFirstChild("Mine") or workspace
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = {mineFolder}
-	params.IgnoreWater = true
-
-	-- Origins slightly offset to avoid hitting the ore itself
-	local sizeY = (ore.Size and ore.Size.Y) or 6
-	local aboveOrigin = ore.Position + Vector3.new(0, sizeY/2 + 0.2, 0)
-	local belowOrigin = ore.Position - Vector3.new(0, sizeY/2 + 0.2, 0)
-
-	local upResult   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  RAY_LENGTH, 0), params)
-	local downResult = workspace:Raycast(belowOrigin,  Vector3.new(0, -RAY_LENGTH, 0), params)
-
-	local platformPos
-
-	if upResult and downResult then
-		local upDist   = (upResult.Position - ore.Position).Magnitude
-		local downDist = (downResult.Position - ore.Position).Magnitude
-
-		if upDist > downDist then
-			-- Closer to floor → floor ore
-			platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
-			print("Ceiling ore -> above")
-		elseif downDist > upDist then
-			-- Closer to ceiling → ceiling ore
-			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-			print("Floor ore -> under")
-		else
-			-- Same distance → default under
-			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-			print("Equal dist -> under")
+	
+	local hasEntitiesNearby = false
+	if workspace:FindFirstChild("Entities") then
+		for _, ent in pairs(workspace.Entities:GetChildren()) do
+			if ent:FindFirstChild("Torso") then
+				if (ent.Torso.Position - ore.Position).Magnitude <= 150 then
+					hasEntitiesNearby = true
+					break
+				end
+			end
 		end
-	elseif upResult and not downResult then
-		-- Only ceiling detected
-		platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-		print("Floor ore -> under (only)")
-	elseif downResult and not upResult then
-		-- Only floor detected
-		platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
-		print("Ceiling ore -> above (only)")
-	else
-		-- No hits, exposed ore
-		platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
-		print("Exposed ore -> under")
 	end
+	
+	local platformPos = ore.Position - Vector3.new(0, 3, 0)
+	
+	if hasEntitiesNearby then
+		local mineFolder = workspace:FindFirstChild("Mine") or workspace
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = {mineFolder}
+		params.IgnoreWater = true
 
+		-- Origins slightly offset to avoid hitting the ore itself
+		local sizeY = (ore.Size and ore.Size.Y) or 6
+		local aboveOrigin = ore.Position + Vector3.new(0, sizeY/2 + 0.2, 0)
+		local belowOrigin = ore.Position - Vector3.new(0, sizeY/2 + 0.2, 0)
+
+		local upResult   = workspace:Raycast(aboveOrigin,  Vector3.new(0,  RAY_LENGTH, 0), params)
+		local downResult = workspace:Raycast(belowOrigin,  Vector3.new(0, -RAY_LENGTH, 0), params)
+
+		if upResult and downResult then
+			local upDist   = (upResult.Position - ore.Position).Magnitude
+			local downDist = (downResult.Position - ore.Position).Magnitude
+
+			if upDist > downDist then
+				-- Closer to floor → floor ore
+				platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
+				print("Ceiling ore -> above")
+			elseif downDist > upDist then
+				-- Closer to ceiling → ceiling ore
+				platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
+				print("Floor ore -> under")
+			else
+				-- Same distance → default under
+				platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
+				print("Equal dist -> under")
+			end
+		elseif upResult and not downResult then
+			-- Only ceiling detected
+			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
+			print("Floor ore -> under (only)")
+		elseif downResult and not upResult then
+			-- Only floor detected
+			platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
+			print("Ceiling ore -> above (only)")
+		else
+			-- No hits, exposed ore
+			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
+			print("Exposed ore -> under")
+		end
+	end
+	
 	-- Place platform
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
