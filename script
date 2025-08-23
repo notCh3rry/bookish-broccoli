@@ -1,4 +1,4 @@
-print("v11")
+print("v12")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -409,29 +409,6 @@ local function updateOreLabel()
 	OresLabel.Text = displayText ~= "" and displayText or "No ores selected"
 end
 
-local function getClosestBlockToGoal(tx, ty, tz)
-	local targetPos = gridToWorld(tx, ty, tz)
-	local closestBlock, closestDist
-
-	for _, block in ipairs(workspace.Mine:GetChildren()) do
-		local dist = (block.Position - targetPos).Magnitude
-		if not closestDist or dist < closestDist then
-			closestDist = dist
-			closestBlock = block
-		end
-	end
-
-	if closestBlock then
-		local pos = closestBlock.Position
-		local x = math.floor(pos.X/6 + 0.5)
-		local y = math.floor((5000 - pos.Y)/6 + 0.5)
-		local z = math.floor(pos.Z/6 + 0.5)
-		return x, y, z, closestBlock
-	end
-	return nil, nil, nil, nil
-end
-
-
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
@@ -613,30 +590,48 @@ task.spawn(function()
 				break
 			end
 		end
-
-		-- CoordMiner
+		
 		-- CoordMiner
 		if CoordMinerOn and AvailableOres <= 1 then
 			-- Init state
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
 				if not tx then 
-					CoordMinerOn = false 
-					CoordMinerButton.Text = "OFF" 
+					CoordMinerOn = false
+					CoordMinerButton.Text = "OFF"
+					CoordMinerInput.TextEditable = true
+					local char, hrp = getCharacter()
+					if hrp then hrp.Anchored = false end
+					coordMinerState = {currentX=nil,currentY=nil,currentZ=nil,targetX=nil,targetY=nil,targetZ=nil,active=false}
 					continue 
 				end
+
 				coordMinerState.targetX = tx
 				coordMinerState.targetY = ty
 				coordMinerState.targetZ = tz
 
-				local cx, cy, cz, startBlock = getClosestBlock()
-				coordMinerState.currentX = cx
-				coordMinerState.currentY = cy
-				coordMinerState.currentZ = cz
-				coordMinerState.active = true
+				-- find closest mined block to goal, not to player
+				local function getClosestToGoal(tx,ty,tz)
+					local goalPos = Vector3.new((tx-0.5)*6, 5000 - (ty-0.5)*6, (tz-0.5)*6)
+					local closest, bestDist
+					for _, block in pairs(workspace.Mine:GetChildren()) do
+						local dist = (block.Position - goalPos).Magnitude
+						if not bestDist or dist < bestDist then
+							bestDist = dist
+							closest = block
+						end
+					end
+					return closest
+				end
 
-				-- 🚀 Teleport onto the starting block once
+				local startBlock = getClosestToGoal(tx,ty,tz)
 				if startBlock and startBlock.Parent then
+					local pos = startBlock.Position
+					coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
+					coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
+					coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
+					coordMinerState.active = true
+
 					safeTeleportToOre(startBlock)
 				end
 			end
@@ -644,7 +639,14 @@ task.spawn(function()
 			-- Mine towards goal
 			local reached = false
 			while CoordMinerOn and not reached do
-				if AutoOresOn then break end -- pause if ore spawns
+				local orePriorities = getOrePriorities()
+				local oresFound = 0
+				for _, ore in pairs(workspace.Mine:GetChildren()) do
+					if table.find(orePriorities, ore.Name) and checkPlayerDistance(ore) > SafetyDistance then
+						oresFound += 1
+					end
+				end
+				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
 
 				local nextBlock = getNextBlock(
 					coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
@@ -680,6 +682,7 @@ task.spawn(function()
 			end
 
 			if reached then
+				print("reached")
 				CoordMinerOn = false
 				CoordMinerButton.Text = "OFF"
 				CoordMinerInput.TextEditable = true
@@ -724,3 +727,4 @@ task.spawn(function()
 		updateOreLabel()
 	end
 end)
+
