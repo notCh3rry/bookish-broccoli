@@ -342,7 +342,7 @@ local function waitForOreMined(ore)
 			end
 
 			if PlayerDetectionOn and checkPlayerDistance(ore) < SafetyDistance then
-				print("Player too close, skipping ore")
+				print("Player too close, stopped mining")
 				tpBack()
 				break
 			end
@@ -358,7 +358,7 @@ local function waitForOreMined(ore)
 					lastSize = currentSize
 					lastChange = tick()
 				elseif tick() - lastChange > 10 then
-					print("Progress stuck, skipping ore")
+					print("Progress stuck, retrying")
 					ore:Destroy() -- delete stuck ore
 					break
 				end
@@ -598,7 +598,6 @@ task.spawn(function()
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
 				if not tx then 
-					print("bad input")
 					CoordMinerOn = false
 					CoordMinerButton.Text = "OFF"
 					CoordMinerInput.TextEditable = true
@@ -618,11 +617,20 @@ task.spawn(function()
 				coordMinerState.targetZ = tz
 
 				-- Find the block closest to the goal
+				-- Find the block closest to the goal that is not near any player
 				local closestDist = math.huge
 				local startBlock
 				for _, block in pairs(workspace.Mine:GetChildren()) do
 					if block and block.Parent and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
-						local bx, by, bz = math.floor(block.Position.X/6 + 0.5), math.floor((5000 - block.Position.Y)/6 + 0.5), math.floor(block.Position.Z/6 + 0.5)
+						local bx = math.floor(block.Position.X/6 + 0.5)
+						local by = math.floor((5000 - block.Position.Y)/6 + 0.5)
+						local bz = math.floor(block.Position.Z/6 + 0.5)
+
+						-- Skip blocks too close to a player
+						if PlayerDetectionOn and checkPlayerDistance(block) < SafetyDistance then
+							continue
+						end
+
 						local dist = (Vector3.new(bx, by, bz) - Vector3.new(tx, ty, tz)).Magnitude
 						if dist < closestDist then
 							closestDist = dist
@@ -643,8 +651,30 @@ task.spawn(function()
 			end
 
 			-- Mine towards goal
+			-- Mine towards goal safely
 			local reached = false
 			while CoordMinerOn and not reached do
+				-- Pause if a player is nearby
+				local playerTooClose = false
+				if PlayerDetectionOn then
+					for _, block in pairs(workspace.Mine:GetChildren()) do
+						if block and block.Parent and not block:FindFirstChild("Claimed") then
+							if checkPlayerDistance(block) < SafetyDistance then
+								playerTooClose = true
+								break
+							end
+						end
+					end
+				end
+
+				if playerTooClose then
+					-- Optional: anchor player while waiting
+					tpBack()
+					task.wait(0.5) -- wait a short time before re-check
+					continue
+				end
+
+				-- AutoOres pause logic
 				local orePriorities = getOrePriorities()
 				local oresFound = 0
 				for _, ore in pairs(workspace.Mine:GetChildren()) do
@@ -652,8 +682,9 @@ task.spawn(function()
 						oresFound += 1
 					end
 				end
-				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
+				if AutoOresOn and oresFound > 0 then break end -- pause CoordMiner if ore is found
 
+				-- Find next block
 				local nextBlock
 				repeat
 					nextBlock = getNextBlock(
@@ -661,16 +692,20 @@ task.spawn(function()
 						coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
 					)
 
-					-- Skip blocks that have PlacedItem
+					-- Skip blocks that have PlacedItem or Claimed
 					if nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")) then
-						-- mark block as "skipped" by temporarily anchoring current coords to it
 						local pos = nextBlock.Position
 						coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
 						coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 						coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
-						nextBlock = nil  -- force loop to get a new block
+						nextBlock = nil
 					end
-				until not (nextBlock and nextBlock:FindFirstChild("PlacedItem"))
+
+					-- Skip blocks too close to a player
+					if nextBlock and PlayerDetectionOn and checkPlayerDistance(nextBlock) < SafetyDistance then
+						nextBlock = nil
+					end
+				until not (nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")))
 
 				-- Goal reached
 				if not nextBlock then
@@ -678,6 +713,7 @@ task.spawn(function()
 					break
 				end
 
+				-- Mine next block
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
