@@ -1,4 +1,4 @@
-print("v8")
+print("v9")
 
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
@@ -413,21 +413,20 @@ local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
 	if not hrp or not char or not ore or not ore.Parent then return end
 	
-	local hasEntitiesNearby = false
+	--[[local hasEntitiesNearby = false
 	if workspace:FindFirstChild("Entities") then
 		for _, ent in pairs(workspace.Entities:GetChildren()) do
 			if ent:FindFirstChild("Torso") then
 				if (ent.Torso.Position - ore.Position).Magnitude <= 150 then
 					hasEntitiesNearby = true
-					break
 				end
 			end
 		end
-	end
+	end]]
 	
 	local platformPos = ore.Position - Vector3.new(0, 3, 0)
 	
-	if hasEntitiesNearby then
+	--[[if hasEntitiesNearby then
 		local mineFolder = workspace:FindFirstChild("Mine") or workspace
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
@@ -472,7 +471,7 @@ local function safeTeleportToOre(ore)
 			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
 			print("Exposed ore -> under")
 		end
-	end
+	end]]
 	
 	-- Place platform
 	if platform and platform.Parent then platform:Destroy() end
@@ -500,7 +499,20 @@ local function safeTeleportToOre(ore)
 	hrp.Anchored = true
 end
 
-
+local function deleteEntities()
+	local char, hrp = getCharacter()
+	if not hrp or not char then return end
+	
+	if workspace:FindFirstChild("Entities") then
+		for _, ent in pairs(workspace.Entities:GetChildren()) do
+			if ent:FindFirstChild("Torso") then
+				if (ent.Torso.Position - hrp.Position).Magnitude <= 100 then
+					ent:Destroy()
+				end
+			end
+		end
+	end
+end
 
 local function collectCoins()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
@@ -629,6 +641,7 @@ task.spawn(function()
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
 				safeTeleportToOre(ore)
+				deleteEntities()
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
@@ -677,6 +690,7 @@ task.spawn(function()
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
 					safeTeleportToOre(nextBlock)
+					deleteEntities()
 
 					workspace.CurrentCamera.SelectedItem.Value = nextBlock
 					tool.SetTarget:InvokeServer(nextBlock)
@@ -708,4 +722,3 @@ task.spawn(function()
 		end
 	end
 end)
-
