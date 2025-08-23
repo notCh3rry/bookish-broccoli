@@ -1,4 +1,4 @@
-print("v5")
+print("v6")
 
 loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
 loadstring(game:HttpGet('https://raw.githubusercontent.com/Lucasfin000/SpaceHub/main/UESP'))() --esp
@@ -19,8 +19,9 @@ local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
 
-local RAY_LENGTH   = 100
-local OFFSET       = 6   -- how far to stand above/below ore
+local RAY_LENGTH = 100
+local OFFSET = 6   -- how far to stand above/below ore
+local UNDEROFFSET = 10
 
 local coordMinerState = {
 	currentX = nil,
@@ -434,7 +435,7 @@ local function safeTeleportToOre(ore)
 
 		if upDist > downDist then
 			-- Closer to floor → floor ore
-			platformPos = ore.Position - Vector3.new(0, OFFSET, 0)
+			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
 			print("Floor ore -> under")
 		elseif downDist > upDist then
 			-- Closer to ceiling → ceiling ore
@@ -442,7 +443,7 @@ local function safeTeleportToOre(ore)
 			print("Ceiling ore -> above")
 		else
 			-- Same distance → default under
-			platformPos = ore.Position - Vector3.new(0, OFFSET, 0)
+			platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
 			print("Equal dist -> under")
 		end
 	elseif upResult and not downResult then
@@ -451,12 +452,12 @@ local function safeTeleportToOre(ore)
 		print("Ceiling ore -> above (only)")
 	elseif downResult and not upResult then
 		-- Only floor detected
-		platformPos = ore.Position - Vector3.new(0, OFFSET, 0)
+		platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
 		print("Floor ore -> under (only)")
 	else
 		-- No hits, exposed ore
-		platformPos = ore.Position + Vector3.new(0, OFFSET, 0)
-		print("Exposed ore -> above")
+		platformPos = ore.Position - Vector3.new(0, UNDEROFFSET, 0)
+		print("Exposed ore -> under")
 	end
 
 	-- Place platform
