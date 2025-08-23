@@ -1,4 +1,4 @@
-print("v12")
+print("v13")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -651,30 +651,8 @@ task.spawn(function()
 			end
 
 			-- Mine towards goal
-			-- Mine towards goal safely
 			local reached = false
 			while CoordMinerOn and not reached do
-				-- Pause if a player is nearby
-				local playerTooClose = false
-				if PlayerDetectionOn then
-					for _, block in pairs(workspace.Mine:GetChildren()) do
-						if block and block.Parent and not block:FindFirstChild("Claimed") then
-							if checkPlayerDistance(block) < SafetyDistance then
-								playerTooClose = true
-								break
-							end
-						end
-					end
-				end
-
-				if playerTooClose then
-					-- Optional: anchor player while waiting
-					tpBack()
-					task.wait(0.5) -- wait a short time before re-check
-					continue
-				end
-
-				-- AutoOres pause logic
 				local orePriorities = getOrePriorities()
 				local oresFound = 0
 				for _, ore in pairs(workspace.Mine:GetChildren()) do
@@ -682,9 +660,8 @@ task.spawn(function()
 						oresFound += 1
 					end
 				end
-				if AutoOresOn and oresFound > 0 then break end -- pause CoordMiner if ore is found
+				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
 
-				-- Find next block
 				local nextBlock
 				repeat
 					nextBlock = getNextBlock(
@@ -692,18 +669,14 @@ task.spawn(function()
 						coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
 					)
 
-					-- Skip blocks that have PlacedItem or Claimed
+					-- Skip blocks that have PlacedItem
 					if nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")) then
+						-- mark block as "skipped" by temporarily anchoring current coords to it
 						local pos = nextBlock.Position
 						coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
 						coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 						coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
-						nextBlock = nil
-					end
-
-					-- Skip blocks too close to a player
-					if nextBlock and PlayerDetectionOn and checkPlayerDistance(nextBlock) < SafetyDistance then
-						nextBlock = nil
+						nextBlock = nil  -- force loop to get a new block
 					end
 				until not (nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")))
 
@@ -713,7 +686,6 @@ task.spawn(function()
 					break
 				end
 
-				-- Mine next block
 				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript:Destroy() end
