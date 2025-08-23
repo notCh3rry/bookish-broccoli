@@ -379,6 +379,11 @@ local function getOrePriorities()
 	return ores
 end
 
+local function gridToWorld(x, y, z)
+	-- Converts block coords to world position
+	return Vector3.new(x*6, 5000 - y*6, z*6)
+end
+
 -- Count ores
 local function countOres(orePriorities)
 	local counts = {}
@@ -404,23 +409,28 @@ local function updateOreLabel()
 	OresLabel.Text = displayText ~= "" and displayText or "No ores selected"
 end
 
--- Coordinates updater (safe)
-task.spawn(function()
-	while task.wait(0.2) do
-		if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-			local pos = Player.Character.HumanoidRootPart.Position
-			local x, y, z = getBlockCoordinates(pos)
-			CoordinatesLabel.Text = "Coords: ("..x..", "..y..", "..z..")"
-			
-			PlayerDistanceLabel.Text = "Distance To Player: "..tostring(checkPlayerDistance(Player.Character.HumanoidRootPart))
-		else
-			CoordinatesLabel.Text = "Coords: N/A"
-			PlayerDistanceLabel.Text = "Distance To Player: N/A"
+local function getClosestBlockToGoal(tx, ty, tz)
+	local targetPos = gridToWorld(tx, ty, tz)
+	local closestBlock, closestDist
+
+	for _, block in ipairs(workspace.Mine:GetChildren()) do
+		local dist = (block.Position - targetPos).Magnitude
+		if not closestDist or dist < closestDist then
+			closestDist = dist
+			closestBlock = block
 		end
-		BlocksInMineLabel.Text = "Blocks Until Reset: "..tostring(BlocksToReset - #workspace.Mine:GetChildren())
-		updateOreLabel()
 	end
-end)
+
+	if closestBlock then
+		local pos = closestBlock.Position
+		local x = math.floor(pos.X/6 + 0.5)
+		local y = math.floor((5000 - pos.Y)/6 + 0.5)
+		local z = math.floor(pos.Z/6 + 0.5)
+		return x, y, z, closestBlock
+	end
+	return nil, nil, nil, nil
+end
+
 
 local function safeTeleportToOre(ore)
 	local char, hrp = getCharacter()
@@ -503,11 +513,6 @@ local function parseCoords(text)
 		return nil
 	end
 	return coords[1], coords[2], coords[3]
-end
-
-local function gridToWorld(x, y, z)
-	-- Converts block coords to world position
-	return Vector3.new(x*6, 5000 - y*6, z*6)
 end
 
 local function getClosestBlock()
@@ -610,20 +615,30 @@ task.spawn(function()
 		end
 
 		-- CoordMiner
+		-- CoordMiner
 		if CoordMinerOn and AvailableOres <= 1 then
 			-- Init state
 			if not coordMinerState.active then
 				local tx, ty, tz = parseCoords(CoordMinerInput.Text)
-				if not tx then CoordMinerOn = false CoordMinerButton.Text = "OFF" continue end
+				if not tx then 
+					CoordMinerOn = false 
+					CoordMinerButton.Text = "OFF" 
+					continue 
+				end
 				coordMinerState.targetX = tx
 				coordMinerState.targetY = ty
 				coordMinerState.targetZ = tz
 
-				local cx, cy, cz = getClosestBlock()
+				local cx, cy, cz, startBlock = getClosestBlock()
 				coordMinerState.currentX = cx
 				coordMinerState.currentY = cy
 				coordMinerState.currentZ = cz
 				coordMinerState.active = true
+
+				-- 🚀 Teleport onto the starting block once
+				if startBlock and startBlock.Parent then
+					safeTeleportToOre(startBlock)
+				end
 			end
 
 			-- Mine towards goal
@@ -631,8 +646,10 @@ task.spawn(function()
 			while CoordMinerOn and not reached do
 				if AutoOresOn then break end -- pause if ore spawns
 
-				local nextBlock = getNextBlock(coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
-					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ)
+				local nextBlock = getNextBlock(
+					coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
+					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
+				)
 
 				-- Goal reached
 				if not nextBlock then
@@ -670,7 +687,7 @@ task.spawn(function()
 				if hrp then
 					hrp.Anchored = false
 				end
-				
+
 				coordMinerState = {
 					currentX = nil,
 					currentY = nil,
@@ -691,3 +708,19 @@ task.spawn(function()
 	end
 end)
 
+task.spawn(function()
+	while task.wait(0.2) do
+		if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+			local pos = Player.Character.HumanoidRootPart.Position
+			local x, y, z = getBlockCoordinates(pos)
+			CoordinatesLabel.Text = "Coords: ("..x..", "..y..", "..z..")"
+
+			PlayerDistanceLabel.Text = "Distance To Player: "..tostring(checkPlayerDistance(Player.Character.HumanoidRootPart))
+		else
+			CoordinatesLabel.Text = "Coords: N/A"
+			PlayerDistanceLabel.Text = "Distance To Player: N/A"
+		end
+		BlocksInMineLabel.Text = "Blocks Until Reset: "..tostring(BlocksToReset - #workspace.Mine:GetChildren())
+		updateOreLabel()
+	end
+end)
