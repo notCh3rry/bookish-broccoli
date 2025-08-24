@@ -1,4 +1,4 @@
-print("v18")
+print("v19")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -7,6 +7,8 @@ end)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
 local Player = Players.LocalPlayer
 
 local isOpen = false
@@ -14,6 +16,7 @@ local PlayerDetectionOn = true
 local AutoOresOn = false
 local CollectOn = false
 local CoordMinerOn = false
+local Rendering = true
 local platform
 
 local MoveAllItems = ReplicatedStorage:WaitForChild("MoveAllItems")
@@ -65,7 +68,7 @@ AspectRatio.DominantAxis = Enum.DominantAxis.Width
 
 local OreInput = Instance.new("TextBox", MainFrame)
 OreInput.Size = UDim2.new(0.927, 0, 0.163, 0)
-OreInput.Position = UDim2.new(0.037, 0, 0.188, 0)
+OreInput.Position = UDim2.new(0.037, 0, 0.234, 0)
 OreInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 OreInput.BorderSizePixel = 0
 OreInput.Font = Enum.Font.Highway
@@ -77,7 +80,7 @@ OreInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 local CoordMinerInput = Instance.new("TextBox", MainFrame)
 CoordMinerInput.Size = UDim2.new(0.689, 0, 0.034, 0)
-CoordMinerInput.Position = UDim2.new(0.037, 0, 0.143, 0)
+CoordMinerInput.Position = UDim2.new(0.037, 0, 0.188, 0)
 CoordMinerInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordMinerInput.BorderSizePixel = 0
 CoordMinerInput.Font = Enum.Font.Highway
@@ -154,7 +157,7 @@ end)
 
 local CoordMinerButton = Instance.new("TextButton", MainFrame)
 CoordMinerButton.Size = UDim2.new(0.197, 0, 0.033, 0)
-CoordMinerButton.Position = UDim2.new(0.762, 0, 0.144, 0)
+CoordMinerButton.Position = UDim2.new(0.762, 0, 0.189, 0)
 CoordMinerButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordMinerButton.BorderSizePixel = 0
 CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -186,6 +189,26 @@ CoordMinerButton.Activated:Connect(function()
 	end
 end)
 
+local RenderingButton = Instance.new("TextButton", MainFrame)
+RenderingButton.Size = UDim2.new(0.927, 0, 0.033, 0)
+RenderingButton.Position = UDim2.new(0.032, 0, 0.144, 0)
+RenderingButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+RenderingButton.BorderSizePixel = 0
+RenderingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+RenderingButton.TextScaled = true
+RenderingButton.Font = Enum.Font.Highway
+RenderingButton.Text = "3D Rendering: ON"
+RenderingButton.Activated:Connect(function()
+	Rendering = not Rendering
+	if Rendering then
+		RenderingButton.Text = "3D Rendering: ON"
+		RunService:Set3dRenderingEnabled(true)
+	else
+		RenderingButton.Text = "3D Rendering: OFF"
+		RunService:Set3dRenderingEnabled(false)
+	end
+end)
+
 local ToggleButton = Instance.new("TextButton", ScreenGui)
 ToggleButton.Size = UDim2.new(0, 53, 0, 51)
 ToggleButton.Position = UDim2.new(-0.0007, 0, 0.6601, 0)
@@ -198,7 +221,7 @@ end)
 
 local OresLabel = Instance.new("TextLabel", MainFrame)
 OresLabel.Size = UDim2.new(0.927, 0, 0.354, 0)
-OresLabel.Position = UDim2.new(0.037, 0, 0.363, 0)
+OresLabel.Position = UDim2.new(0.037, 0, 0.408, 0)
 OresLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 OresLabel.BorderSizePixel = 0
 OresLabel.Text = ""
@@ -208,7 +231,7 @@ OresLabel.Font = Enum.Font.Highway
 
 local BlocksInMineLabel = Instance.new("TextLabel", MainFrame)
 BlocksInMineLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-BlocksInMineLabel.Position = UDim2.new(0.037, 0, 0.729, 0)
+BlocksInMineLabel.Position = UDim2.new(0.037, 0, 0.774, 0)
 BlocksInMineLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 BlocksInMineLabel.BorderSizePixel = 0
 BlocksInMineLabel.Text = "Blocks Until Reset: N/A"
@@ -218,7 +241,7 @@ BlocksInMineLabel.Font = Enum.Font.Highway
 
 local CoordinatesLabel = Instance.new("TextLabel", MainFrame)
 CoordinatesLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-CoordinatesLabel.Position = UDim2.new(0.037, 0, 0.772, 0)
+CoordinatesLabel.Position = UDim2.new(0.037, 0, 0.818, 0)
 CoordinatesLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordinatesLabel.BorderSizePixel = 0
 CoordinatesLabel.Text = ""
@@ -228,7 +251,7 @@ CoordinatesLabel.Font = Enum.Font.Highway
 
 local PlayerDistanceLabel = Instance.new("TextLabel", MainFrame)
 PlayerDistanceLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-PlayerDistanceLabel.Position = UDim2.new(0.037, 0, 0.816, 0)
+PlayerDistanceLabel.Position = UDim2.new(0.037, 0, 0.861, 0)
 PlayerDistanceLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 PlayerDistanceLabel.BorderSizePixel = 0
 PlayerDistanceLabel.Text = ""
@@ -489,6 +512,7 @@ local function collectCoins()
 		if v.Owner.Value == Player then
 			local coins = v.Items.Mine.Pad.BillboardGui.Amount.Text:gsub("%D", "")
 			if tonumber(coins) and tonumber(coins) > CollectThreshold then
+				task.wait(0.1)
 				local char, hrp = getCharacter()
 				if char and hrp then
 					-- Unanchor so touched fires
@@ -573,7 +597,7 @@ local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targ
 end
 
 task.spawn(function()
-	while task.wait(0.3) do
+	while task.wait() do
 		local char, hrp = getCharacter()
 		if not hrp then continue end
 
@@ -620,7 +644,6 @@ task.spawn(function()
 				tool.Activation:FireServer(true)
 				waitForOreMined(ore)
 				tool.Activation:FireServer(false)
-				checkInventory()
 
 				break
 			end
@@ -732,7 +755,6 @@ task.spawn(function()
 					tool.Activation:FireServer(true)
 					waitForOreMined(nextBlock)
 					tool.Activation:FireServer(false)
-					checkInventory()
 				end
 
 				-- Update current coordinates
@@ -740,11 +762,9 @@ task.spawn(function()
 				coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
 				coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 				coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
-				task.wait(0.1)
 			end
 
 			if reached then
-				print("reached")
 				CoordMinerOn = false
 				CoordMinerButton.Text = "OFF"
 				CoordMinerInput.TextEditable = true
@@ -764,10 +784,10 @@ task.spawn(function()
 				}
 			end
 		end
-
+		
+		checkInventory()
 		-- Collect coins
 		if CollectOn then
-			task.wait(0.1)
 			collectCoins()
 		end
 	end
