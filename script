@@ -1,4 +1,4 @@
-print("v16")
+print("v17")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -284,6 +284,38 @@ local function tpBack()
 	end
 end
 
+local function equipPickaxeForOre(ore)
+	local forge = game.ReplicatedStorage:WaitForChild("Forge")
+	local pickaxeName
+
+	if ore.Name == "Dragonstone" or ore.Name == "Boomite" then
+		pickaxeName = "Dragonstone" -- Dragonglass pickaxe
+	else
+		pickaxeName = "Amethyst" -- Default pickaxe
+	end
+
+	pcall(function()
+		forge:InvokeServer(pickaxeName)
+	end)
+
+	local char, hrp = getCharacter()
+	
+	if not char or not hrp then
+		return nil
+	end
+
+	local tool = char:FindFirstChild("Pickaxe")
+	if not tool then
+		repeat
+			task.wait()
+			tool = char:FindFirstChild("Pickaxe")
+		until tool ~= nil or not char or not hrp
+	end
+
+	return tool
+end
+
+
 -- Auto-equip Pickaxe on spawn
 local function equipPickaxe(char)
 	task.spawn(function()
@@ -391,7 +423,7 @@ local function waitForOreMined(ore)
 					break
 				end
 			end
-		until mined or not progressBar.Visible
+		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn)
 	end
 
 	if not mined and conn then conn:Disconnect() end
@@ -576,7 +608,7 @@ task.spawn(function()
 				local ore = entry.ore
 				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then continue end
 
-				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
+				local tool = equipPickaxeForOre(ore)
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
@@ -689,7 +721,7 @@ task.spawn(function()
 					break
 				end
 
-				local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
+				local tool = equipPickaxeForOre(nextBlock)
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 					safeTeleportToObj(nextBlock)
