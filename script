@@ -1,4 +1,4 @@
-print("v17")
+print("v18")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -289,7 +289,7 @@ local function equipPickaxeForOre(ore)
 	local pickaxeName
 
 	if ore.Name == "Dragonstone" or ore.Name == "Boomite" then
-		pickaxeName = "Dragonstone" -- Dragonglass pickaxe
+		pickaxeName = "Dragonglass" -- Dragonglass pickaxe
 	else
 		pickaxeName = "Amethyst" -- Default pickaxe
 	end
