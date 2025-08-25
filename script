@@ -1,4 +1,4 @@
-print("v19")
+print("v20")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -531,8 +531,6 @@ local function collectCoins()
 	end
 end
 
-
-
 local function parseCoords(text)
 	if not text or text == "" then return nil end
 	text = text:gsub("[,|]", " ")
@@ -547,53 +545,47 @@ local function parseCoords(text)
 	return coords[1], coords[2], coords[3]
 end
 
-local function getClosestBlock()
-	local char, hrp = getCharacter()
-	if not hrp then return nil, nil, nil end
-	local pos = hrp.Position
-	local x = math.floor(pos.X/6 + 0.5)
-	local y = math.floor((5000 - pos.Y)/6 + 0.5)
-	local z = math.floor(pos.Z/6 + 0.5)
-	return x, y, z
-end
-
--- Returns the next block to mine along cardinal directions
 local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targetZ)
-	local dirs = {}
-	if currentY ~= targetY then
-		table.insert(dirs, Vector3.new(0, (targetY > currentY and -1 or 1) * 6, 0))
-	elseif currentX ~= targetX then
-		table.insert(dirs, Vector3.new((targetX > currentX and 1 or -1) * 6, 0, 0))
-	elseif currentZ ~= targetZ then
-		table.insert(dirs, Vector3.new(0, 0, (targetZ > currentZ and 1 or -1) * 6))
-	else
-		return nil
-	end
-
-	local startPos = gridToWorld(currentX, currentY, currentZ)
-	for _, dir in ipairs(dirs) do
-		local ray = Ray.new(startPos, dir)
-		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
-		if part and not part:FindFirstChild("Claimed") then
-			return part
-		end
-	end
-
-	-- Fallback: check all cardinal directions
-	local fallbackDirs = {
-		Vector3.new(6,0,0), Vector3.new(-6,0,0),
-		Vector3.new(0,-6,0), Vector3.new(0,6,0),
-		Vector3.new(0,0,6), Vector3.new(0,0,-6)
+	local offsets = {
+		Vector3.new( 1,  0,  0),
+		Vector3.new(-1,  0,  0),
+		Vector3.new( 0,  1,  0),
+		Vector3.new( 0, -1,  0),
+		Vector3.new( 0,  0,  1),
+		Vector3.new( 0,  0, -1),
 	}
-	for _, dir in ipairs(fallbackDirs) do
-		local ray = Ray.new(startPos, dir)
-		local part, _ = workspace:FindPartOnRayWithWhitelist(ray, {workspace.Mine})
-		if part and not part:FindFirstChild("Claimed") then
-			return part
+
+	local bestBlock, bestDist = nil, math.huge
+	local startPos = gridToWorld(currentX, currentY, currentZ)
+
+	for _, offset in ipairs(offsets) do
+		local nx, ny, nz = currentX + offset.X, currentY + offset.Y, currentZ + offset.Z
+		local neighborPos = gridToWorld(nx, ny, nz)
+
+		-- raycast to neighbor
+		local dir = (neighborPos - startPos).Unit * 6
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = {workspace.Mine}
+
+		local result = workspace:Raycast(startPos, dir, params)
+		if result and result.Instance then
+			local block = result.Instance
+			if block.Parent
+				and not block:FindFirstChild("Claimed")
+				and not block:FindFirstChild("PlacedItem")
+				and (not PlayerDetectionOn or checkPlayerDistance(block) > SafetyDistance)
+			then
+				local dist = (Vector3.new(nx, ny, nz) - Vector3.new(targetX, targetY, targetZ)).Magnitude
+				if dist < bestDist then
+					bestBlock = block
+					bestDist = dist
+				end
+			end
 		end
 	end
 
-	return nil
+	return bestBlock
 end
 
 task.spawn(function()
@@ -720,23 +712,10 @@ task.spawn(function()
 				end
 				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
 
-				local nextBlock
-				repeat
-					nextBlock = getNextBlock(
-						coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
-						coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
-					)
-
-					-- Skip blocks that have PlacedItem
-					if nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")) then
-						-- mark block as "skipped" by temporarily anchoring current coords to it
-						local pos = nextBlock.Position
-						coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
-						coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
-						coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
-						nextBlock = nil  -- force loop to get a new block
-					end
-				until not (nextBlock and (nextBlock:FindFirstChild("PlacedItem") or nextBlock:FindFirstChild("Claimed")))
+				local nextBlock = getNextBlock(
+					coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
+					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
+				)
 
 				-- Goal reached
 				if not nextBlock then
