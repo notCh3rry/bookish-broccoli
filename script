@@ -1,4 +1,4 @@
-print("v20")
+print("v21")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -571,9 +571,8 @@ local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targ
 		local result = workspace:Raycast(startPos, dir, params)
 		if result and result.Instance then
 			local block = result.Instance
-			if block.Parent
+			if block.Parent == game.Workspace.Mine
 				and not block:FindFirstChild("Claimed")
-				and not block:FindFirstChild("PlacedItem")
 				and (not PlayerDetectionOn or checkPlayerDistance(block) > SafetyDistance)
 			then
 				local dist = (Vector3.new(nx, ny, nz) - Vector3.new(targetX, targetY, targetZ)).Magnitude
@@ -703,6 +702,13 @@ task.spawn(function()
 			-- Mine towards goal
 			local reached = false
 			while CoordMinerOn and not reached do
+				if coordMinerState.currentX == coordMinerState.targetX
+					and coordMinerState.currentY == coordMinerState.targetY
+					and coordMinerState.currentZ == coordMinerState.targetZ then
+					reached = true
+					break
+				end
+				
 				local orePriorities = getOrePriorities()
 				local oresFound = 0
 				for _, ore in pairs(workspace.Mine:GetChildren()) do
