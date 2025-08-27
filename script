@@ -1,4 +1,4 @@
-print("v21")
+print("v23")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -17,12 +17,16 @@ local AutoOresOn = false
 local CollectOn = false
 local CoordMinerOn = false
 local Rendering = true
+local Fullbright = false
+local ExcateLayerOn = false
 local platform
 
 local MoveAllItems = ReplicatedStorage:WaitForChild("MoveAllItems")
 local BlocksToReset = 115000
 local SafetyDistance = 200
 local CollectThreshold = 500
+
+local ExcavateLayerLastPos = nil
 
 local coordMinerState = {
 	currentX = nil,
@@ -68,7 +72,7 @@ AspectRatio.DominantAxis = Enum.DominantAxis.Width
 
 local OreInput = Instance.new("TextBox", MainFrame)
 OreInput.Size = UDim2.new(0.927, 0, 0.163, 0)
-OreInput.Position = UDim2.new(0.037, 0, 0.234, 0)
+OreInput.Position = UDim2.new(0.037, 0, 0.277, 0)
 OreInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 OreInput.BorderSizePixel = 0
 OreInput.Font = Enum.Font.Highway
@@ -80,7 +84,7 @@ OreInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 local CoordMinerInput = Instance.new("TextBox", MainFrame)
 CoordMinerInput.Size = UDim2.new(0.689, 0, 0.034, 0)
-CoordMinerInput.Position = UDim2.new(0.037, 0, 0.188, 0)
+CoordMinerInput.Position = UDim2.new(0.037, 0, 0.232, 0)
 CoordMinerInput.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordMinerInput.BorderSizePixel = 0
 CoordMinerInput.Font = Enum.Font.Highway
@@ -96,7 +100,7 @@ PlayerDetectButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 PlayerDetectButton.Position = UDim2.new(0.032, 0, 0.057, 0)
 PlayerDetectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 PlayerDetectButton.BorderSizePixel = 0
-PlayerDetectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerDetectButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 PlayerDetectButton.TextScaled = true
 PlayerDetectButton.Font = Enum.Font.Highway
 PlayerDetectButton.Text = "Player Detection: ON"
@@ -104,8 +108,10 @@ PlayerDetectButton.Activated:Connect(function()
 	PlayerDetectionOn = not PlayerDetectionOn
 	if PlayerDetectionOn then
 		PlayerDetectButton.Text = "Player Detection: ON"
+		PlayerDetectButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		PlayerDetectButton.Text = "Player Detection: OFF"
+		PlayerDetectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 	end
 end)
 
@@ -115,7 +121,7 @@ AutoOresButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 AutoOresButton.Position = UDim2.new(0.037, 0, 0.013, 0)
 AutoOresButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 AutoOresButton.BorderSizePixel = 0
-AutoOresButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoOresButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 AutoOresButton.TextScaled = true
 AutoOresButton.Font = Enum.Font.Highway
 AutoOresButton.Text = "Auto Ores: OFF"
@@ -123,8 +129,10 @@ AutoOresButton.Activated:Connect(function()
 	AutoOresOn = not AutoOresOn
 	if AutoOresOn then
 		AutoOresButton.Text = "Auto Ores: ON"
+		AutoOresButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		AutoOresButton.Text = "Auto Ores: OFF"
+		AutoOresButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 		Player.Character.HumanoidRootPart.Anchored = false
 		
 		local char, hrp = getCharacter()
@@ -142,7 +150,7 @@ CollectButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 CollectButton.Position = UDim2.new(0.032, 0, 0.1, 0)
 CollectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CollectButton.BorderSizePixel = 0
-CollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CollectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 CollectButton.TextScaled = true
 CollectButton.Font = Enum.Font.Highway
 CollectButton.Text = "Collect Coins: OFF"
@@ -150,17 +158,40 @@ CollectButton.Activated:Connect(function()
 	CollectOn = not CollectOn
 	if CollectOn then
 		CollectButton.Text = "Collect Coins: ON"
+		CollectButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		CollectButton.Text = "Collect Coins: OFF"
+		CollectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+	end
+end)
+
+local ExcavateButton = Instance.new("TextButton", MainFrame)
+ExcavateButton.Size = UDim2.new(0.927, 0, 0.033, 0)
+ExcavateButton.Position = UDim2.new(0.032, 0, 0.144, 0)
+ExcavateButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+ExcavateButton.BorderSizePixel = 0
+ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+ExcavateButton.TextScaled = true
+ExcavateButton.Font = Enum.Font.Highway
+ExcavateButton.Text = "Excavate Layer: OFF"
+ExcavateButton.Activated:Connect(function()
+	ExcateLayerOn = not ExcateLayerOn
+	if ExcateLayerOn then
+		ExcavateButton.Text = "Excavate Layer: ON"
+		ExcavateButton.TextColor3 = Color3.fromRGB(170, 255, 165)
+	else
+		ExcavateButton.Text = "Excavate Layer: OFF"
+		ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		ExcavateLayerLastPos = nil
 	end
 end)
 
 local CoordMinerButton = Instance.new("TextButton", MainFrame)
 CoordMinerButton.Size = UDim2.new(0.197, 0, 0.033, 0)
-CoordMinerButton.Position = UDim2.new(0.762, 0, 0.189, 0)
+CoordMinerButton.Position = UDim2.new(0.762, 0, 0.232, 0)
 CoordMinerButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordMinerButton.BorderSizePixel = 0
-CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CoordMinerButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 CoordMinerButton.TextScaled = true
 CoordMinerButton.Font = Enum.Font.Highway
 CoordMinerButton.Text = "OFF"
@@ -169,9 +200,11 @@ CoordMinerButton.Activated:Connect(function()
 	if CoordMinerOn then
 		CoordMinerButton.Text = "ON"
 		CoordMinerInput.TextEditable = false
+		CoordMinerButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		CoordMinerButton.Text = "OFF"
 		CoordMinerInput.TextEditable = true
+		CoordMinerButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 		local char, hrp = getCharacter()
 		if hrp then
 			hrp.Anchored = false
@@ -190,22 +223,44 @@ CoordMinerButton.Activated:Connect(function()
 end)
 
 local RenderingButton = Instance.new("TextButton", MainFrame)
-RenderingButton.Size = UDim2.new(0.927, 0, 0.033, 0)
-RenderingButton.Position = UDim2.new(0.032, 0, 0.144, 0)
+RenderingButton.Size = UDim2.new(0.45, 0, 0.033, 0)
+RenderingButton.Position = UDim2.new(0.508, 0, 0.187, 0)
 RenderingButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 RenderingButton.BorderSizePixel = 0
-RenderingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+RenderingButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 RenderingButton.TextScaled = true
 RenderingButton.Font = Enum.Font.Highway
-RenderingButton.Text = "3D Rendering: ON"
+RenderingButton.Text = "Rendering: ON"
 RenderingButton.Activated:Connect(function()
 	Rendering = not Rendering
 	if Rendering then
-		RenderingButton.Text = "3D Rendering: ON"
+		RenderingButton.Text = "Rendering: ON"
+		RenderingButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 		RunService:Set3dRenderingEnabled(true)
 	else
-		RenderingButton.Text = "3D Rendering: OFF"
+		RenderingButton.Text = "Rendering: OFF"
+		RenderingButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 		RunService:Set3dRenderingEnabled(false)
+	end
+end)
+
+local FullbrightButton = Instance.new("TextButton", MainFrame)
+FullbrightButton.Size = UDim2.new(0.45, 0, 0.033, 0)
+FullbrightButton.Position = UDim2.new(0.032, 0, 0.187, 0)
+FullbrightButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+FullbrightButton.BorderSizePixel = 0
+FullbrightButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+FullbrightButton.TextScaled = true
+FullbrightButton.Font = Enum.Font.Highway
+FullbrightButton.Text = "Fullbright: OFF"
+FullbrightButton.Activated:Connect(function()
+	Fullbright = not Fullbright
+	if Fullbright then
+		FullbrightButton.Text = "Fullbright: ON"
+		FullbrightButton.TextColor3 = Color3.fromRGB(170, 255, 165)
+	else
+		FullbrightButton.Text = "Fullbright: OFF"
+		FullbrightButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 	end
 end)
 
@@ -221,7 +276,7 @@ end)
 
 local OresLabel = Instance.new("TextLabel", MainFrame)
 OresLabel.Size = UDim2.new(0.927, 0, 0.354, 0)
-OresLabel.Position = UDim2.new(0.037, 0, 0.408, 0)
+OresLabel.Position = UDim2.new(0.037, 0, 0.452, 0)
 OresLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 OresLabel.BorderSizePixel = 0
 OresLabel.Text = ""
@@ -231,7 +286,7 @@ OresLabel.Font = Enum.Font.Highway
 
 local BlocksInMineLabel = Instance.new("TextLabel", MainFrame)
 BlocksInMineLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-BlocksInMineLabel.Position = UDim2.new(0.037, 0, 0.774, 0)
+BlocksInMineLabel.Position = UDim2.new(0.037, 0, 0.818, 0)
 BlocksInMineLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 BlocksInMineLabel.BorderSizePixel = 0
 BlocksInMineLabel.Text = "Blocks Until Reset: N/A"
@@ -241,7 +296,7 @@ BlocksInMineLabel.Font = Enum.Font.Highway
 
 local CoordinatesLabel = Instance.new("TextLabel", MainFrame)
 CoordinatesLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-CoordinatesLabel.Position = UDim2.new(0.037, 0, 0.818, 0)
+CoordinatesLabel.Position = UDim2.new(0.037, 0, 0.861, 0)
 CoordinatesLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordinatesLabel.BorderSizePixel = 0
 CoordinatesLabel.Text = ""
@@ -251,7 +306,7 @@ CoordinatesLabel.Font = Enum.Font.Highway
 
 local PlayerDistanceLabel = Instance.new("TextLabel", MainFrame)
 PlayerDistanceLabel.Size = UDim2.new(0.927, 0, 0.033, 0)
-PlayerDistanceLabel.Position = UDim2.new(0.037, 0, 0.861, 0)
+PlayerDistanceLabel.Position = UDim2.new(0.037, 0, 0.905, 0)
 PlayerDistanceLabel.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 PlayerDistanceLabel.BorderSizePixel = 0
 PlayerDistanceLabel.Text = ""
@@ -383,6 +438,35 @@ local function checkPlayerDistance(object)
 		end
 	end
 	return math.round(closestDistance)
+end
+
+local function findNextStone(originPos)
+	local directions = 24 -- cast rays in circle
+	local radius = 10000 -- scan distance
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {game.Workspace.Mine}
+	params.FilterType = Enum.RaycastFilterType.Include
+
+	local bestStone, bestDist
+
+	for i = 1, directions do
+		local angle = (2 * math.pi / directions) * i
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local result = game.Workspace:Raycast(originPos, dir * radius, params)
+
+		if result and result.Instance and result.Instance.Name == "Stone" then
+			local ore = result.Instance
+			if not ore:FindFirstChild("Claimed") and ore.Parent == game.Workspace.Mine then
+				local dist = (ore.Position - originPos).Magnitude
+				if not bestStone or dist < bestDist then
+					bestStone = ore
+					bestDist = dist
+				end
+			end
+		end
+	end
+
+	return bestStone
 end
 
 -- Wait for ore mined (safe)
@@ -531,6 +615,17 @@ local function collectCoins()
 	end
 end
 
+local function getAvailableOreCount()
+	local orePriorities = getOrePriorities()
+	local oresFound = 0
+	for _, ore in pairs(workspace.Mine:GetChildren()) do
+		if table.find(orePriorities, ore.Name) and checkPlayerDistance(ore) > SafetyDistance then
+			oresFound += 1
+		end
+	end
+	return oresFound
+end
+
 local function parseCoords(text)
 	if not text or text == "" then return nil end
 	text = text:gsub("[,|]", " ")
@@ -603,7 +698,6 @@ task.spawn(function()
 			continue
 		end
 		
-		local AvailableOres = 0
 		-- AutoOres
 		if AutoOresOn then
 			local orePriorities = getOrePriorities()
@@ -613,7 +707,6 @@ task.spawn(function()
 					table.insert(oresFound, {ore = ore, priority = table.find(orePriorities, ore.Name)})
 				end
 			end
-			AvailableOres = #oresFound
 			table.sort(oresFound, function(a,b)
 				if a.priority ~= b.priority then return a.priority < b.priority end
 				return a.ore.Position.Y > b.ore.Position.Y
@@ -640,8 +733,43 @@ task.spawn(function()
 			end
 		end
 		
+		if ExcateLayerOn and getAvailableOreCount() <= 1 then
+			if ExcavateLayerLastPos then
+				local char, hrp = getCharacter()
+				if not char or hrp then continue end
+				
+				hrp.Position = ExcavateLayerLastPos
+			end
+			
+			while ExcateLayerOn do
+				if AutoOresOn and getAvailableOreCount() > 0 then break end
+				
+				local ore = findNextStone(hrp.Position)
+				
+				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then continue end
+
+				local tool = equipPickaxeForOre(ore)
+				if not tool then break end
+
+				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
+				safeTeleportToObj(ore)
+				deleteEntities()
+
+				workspace.CurrentCamera.SelectedItem.Value = ore
+				tool.SetTarget:InvokeServer(ore)
+				tool.Activation:FireServer(true)
+				waitForOreMined(ore)
+				tool.Activation:FireServer(false)
+				
+				local char, hrp = getCharacter()
+				if hrp then
+					ExcavateLayerLastPos = hrp.Position
+				end
+			end
+		end
+		
 		-- CoordMiner
-		if CoordMinerOn and AvailableOres <= 1 then
+		if CoordMinerOn and getAvailableOreCount() <= 1 then
 			-- Init state
 			-- CoordMiner initialization (inside your main loop)
 			if not coordMinerState.active then
@@ -702,21 +830,14 @@ task.spawn(function()
 			-- Mine towards goal
 			local reached = false
 			while CoordMinerOn and not reached do
+				if AutoOresOn and getAvailableOreCount() > 0 then break end -- pause if ore spawns
+				
 				if coordMinerState.currentX == coordMinerState.targetX
 					and coordMinerState.currentY == coordMinerState.targetY
 					and coordMinerState.currentZ == coordMinerState.targetZ then
 					reached = true
 					break
 				end
-				
-				local orePriorities = getOrePriorities()
-				local oresFound = 0
-				for _, ore in pairs(workspace.Mine:GetChildren()) do
-					if table.find(orePriorities, ore.Name) and checkPlayerDistance(ore) > SafetyDistance then
-						oresFound += 1
-					end
-				end
-				if AutoOresOn and oresFound > 0 then break end -- pause if ore spawns
 
 				local nextBlock = getNextBlock(
 					coordMinerState.currentX, coordMinerState.currentY, coordMinerState.currentZ,
