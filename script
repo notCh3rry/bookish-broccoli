@@ -1,4 +1,4 @@
-print("v33")
+print("v34")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -110,7 +110,7 @@ PlayerDetectButton.Activated:Connect(function()
 		PlayerDetectButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		PlayerDetectButton.Text = "Player Detection: OFF"
-		PlayerDetectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		PlayerDetectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	end
 end)
 
@@ -120,7 +120,7 @@ AutoOresButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 AutoOresButton.Position = UDim2.new(0.037, 0, 0.013, 0)
 AutoOresButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 AutoOresButton.BorderSizePixel = 0
-AutoOresButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+AutoOresButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoOresButton.TextScaled = true
 AutoOresButton.Font = Enum.Font.Highway
 AutoOresButton.Text = "Auto Ores: OFF"
@@ -131,7 +131,7 @@ AutoOresButton.Activated:Connect(function()
 		AutoOresButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		AutoOresButton.Text = "Auto Ores: OFF"
-		AutoOresButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		AutoOresButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		Player.Character.HumanoidRootPart.Anchored = false
 		
 		local char, hrp = getCharacter()
@@ -146,7 +146,7 @@ CollectButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 CollectButton.Position = UDim2.new(0.032, 0, 0.1, 0)
 CollectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CollectButton.BorderSizePixel = 0
-CollectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+CollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CollectButton.TextScaled = true
 CollectButton.Font = Enum.Font.Highway
 CollectButton.Text = "Collect Coins: OFF"
@@ -157,7 +157,7 @@ CollectButton.Activated:Connect(function()
 		CollectButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		CollectButton.Text = "Collect Coins: OFF"
-		CollectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		CollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		
 		local char, hrp = getCharacter()
 		if hrp then
@@ -171,7 +171,7 @@ ExcavateButton.Size = UDim2.new(0.927, 0, 0.033, 0)
 ExcavateButton.Position = UDim2.new(0.032, 0, 0.144, 0)
 ExcavateButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 ExcavateButton.BorderSizePixel = 0
-ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+ExcavateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ExcavateButton.TextScaled = true
 ExcavateButton.Font = Enum.Font.Highway
 ExcavateButton.Text = "Excavate Layer: OFF"
@@ -182,7 +182,7 @@ ExcavateButton.Activated:Connect(function()
 		ExcavateButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		ExcavateButton.Text = "Excavate Layer: OFF"
-		ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		ExcavateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		ExcavateLayerLastPos = nil
 		
 		local char, hrp = getCharacter()
@@ -197,7 +197,7 @@ CoordMinerButton.Size = UDim2.new(0.197, 0, 0.033, 0)
 CoordMinerButton.Position = UDim2.new(0.762, 0, 0.232, 0)
 CoordMinerButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 CoordMinerButton.BorderSizePixel = 0
-CoordMinerButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CoordMinerButton.TextScaled = true
 CoordMinerButton.Font = Enum.Font.Highway
 CoordMinerButton.Text = "OFF"
@@ -210,7 +210,7 @@ CoordMinerButton.Activated:Connect(function()
 	else
 		CoordMinerButton.Text = "OFF"
 		CoordMinerInput.TextEditable = true
-		CoordMinerButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		local char, hrp = getCharacter()
 		if hrp then
 			hrp.Anchored = false
@@ -245,7 +245,7 @@ RenderingButton.Activated:Connect(function()
 		RunService:Set3dRenderingEnabled(true)
 	else
 		RenderingButton.Text = "Rendering: OFF"
-		RenderingButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		RenderingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		RunService:Set3dRenderingEnabled(false)
 	end
 end)
@@ -255,7 +255,7 @@ FullbrightButton.Size = UDim2.new(0.45, 0, 0.033, 0)
 FullbrightButton.Position = UDim2.new(0.032, 0, 0.187, 0)
 FullbrightButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 FullbrightButton.BorderSizePixel = 0
-FullbrightButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+FullbrightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FullbrightButton.TextScaled = true
 FullbrightButton.Font = Enum.Font.Highway
 FullbrightButton.Text = "Fullbright: OFF"
@@ -266,7 +266,7 @@ FullbrightButton.Activated:Connect(function()
 		FullbrightButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
 		FullbrightButton.Text = "Fullbright: OFF"
-		FullbrightButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		FullbrightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	end
 end)
 
@@ -781,7 +781,7 @@ task.spawn(function()
 				if not ore then
 					ExcateLayerOn = false
 					ExcavateButton.Text = "Excavate Layer: OFF"
-					ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+					ExcavateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 					ExcavateLayerLastPos = nil
 					
 					continue
@@ -806,6 +806,8 @@ task.spawn(function()
 				if hrp then
 					ExcavateLayerLastPos = hrp.Position
 				end
+				
+				checkInventory()
 			end
 		end
 		
@@ -909,6 +911,8 @@ task.spawn(function()
 				coordMinerState.currentX = math.floor(pos.X/6 + 0.5)
 				coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 				coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
+				
+				checkInventory()
 			end
 
 			if reached then
