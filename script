@@ -1,4 +1,4 @@
-print("v31")
+print("v32")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -713,7 +713,9 @@ task.spawn(function()
 			repeat
 				task.wait(0.1)
 				tpBack()
+				print("loop low health, going back")
 			until not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health > 80
+			print("loop low health ended")
 			continue
 		end
 
