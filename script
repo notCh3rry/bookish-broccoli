@@ -1,4 +1,4 @@
-print("v32")
+print("v33")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -765,7 +765,7 @@ task.spawn(function()
 			end
 		end
 		
-		if ExcateLayerOn and getAvailableOreCount() <= 1 then
+		if ExcateLayerOn and not (AutoOresOn and getAvailableOreCount() > 0) then
 			if ExcavateLayerLastPos then
 				local char, hrp = getCharacter()
 				if not char or hrp then continue end
@@ -810,7 +810,7 @@ task.spawn(function()
 		end
 		
 		-- CoordMiner
-		if CoordMinerOn and getAvailableOreCount() <= 1 then
+		if CoordMinerOn and not (AutoOresOn and getAvailableOreCount() > 0) then
 			-- Init state
 			-- CoordMiner initialization (inside your main loop)
 			if not coordMinerState.active then
