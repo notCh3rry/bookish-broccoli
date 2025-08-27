@@ -1,4 +1,4 @@
-print("v28")
+print("v29")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -496,7 +496,7 @@ local function waitForOreMined(ore)
 
 	local startCheck = tick()
 	while progressBar.Visible == false do
-		task.wait(0.1)
+		task.wait()
 		if tick() - startCheck > 0.5 then
 			break
 		end
@@ -508,7 +508,7 @@ local function waitForOreMined(ore)
 		local lastChange = tick()
 
 		repeat
-			task.wait(0.1)
+			task.wait()
 			
 			if selectedOreBox and selectedOreBox.Color == Color3.new(1, 0.7, 0.3) then
 				print("Broken ore, skipping")
