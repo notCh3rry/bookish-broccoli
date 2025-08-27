@@ -1,4 +1,4 @@
-print("v30")
+print("v31")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -542,7 +542,7 @@ local function waitForOreMined(ore)
 				end
 			end
 			
-			if not char or hrp then
+			if not char or not hrp then
 				print("Player died, stopped mining")
 				break
 			end
