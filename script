@@ -1,4 +1,4 @@
-print("v25")
+print("v27")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -135,12 +135,9 @@ AutoOresButton.Activated:Connect(function()
 		Player.Character.HumanoidRootPart.Anchored = false
 		
 		local char, hrp = getCharacter()
-		if not char or not hrp then return end
-		
-		local tool = char:FindFirstChild("Pickaxe") or Player.Backpack:FindFirstChild("Pickaxe")
-		if not tool then return end
-
-		if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = true end
+		if hrp then
+			hrp.Anchored = false
+		end
 	end
 end)
 
@@ -161,6 +158,11 @@ CollectButton.Activated:Connect(function()
 	else
 		CollectButton.Text = "Collect Coins: OFF"
 		CollectButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+		
+		local char, hrp = getCharacter()
+		if hrp then
+			hrp.Anchored = false
+		end
 	end
 end)
 
@@ -182,6 +184,11 @@ ExcavateButton.Activated:Connect(function()
 		ExcavateButton.Text = "Excavate Layer: OFF"
 		ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
 		ExcavateLayerLastPos = nil
+		
+		local char, hrp = getCharacter()
+		if hrp then
+			hrp.Anchored = false
+		end
 	end
 end)
 
@@ -747,7 +754,16 @@ task.spawn(function()
 				
 				local ore = findNextStone(hrp.Position)
 				
-				if not (ore and ore.Parent) or ore:FindFirstChild("Claimed") then continue end
+				if not ore then
+					ExcateLayerOn = false
+					ExcavateButton.Text = "Excavate Layer: OFF"
+					ExcavateButton.TextColor3 = Color3.fromRGB(255, 120, 120)
+					ExcavateLayerLastPos = nil
+					
+					continue
+				end
+				
+				if ore:FindFirstChild("Claimed") then continue end
 
 				local tool = equipPickaxeForOre(ore)
 				if not tool then break end
