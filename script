@@ -1,4 +1,4 @@
-print("v23")
+print("v24")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -323,11 +323,11 @@ local function getBlockCoordinates(position)
 	return x, depth, z
 end
 
-local function safeTeleportToObj(obj)
+local function safeTeleportToPos(pos)
 	local char, hrp = getCharacter()
-	if not hrp or not char or not obj or not obj.Parent then return end
+	if not hrp or not char or not pos then return end
 
-	local platformPos = obj.Position - Vector3.new(0, 3, 0)
+	local platformPos = pos - Vector3.new(0, 3, 0)
 
 	if platform and platform.Parent then platform:Destroy() end
 	platform = Instance.new("Part")
@@ -357,7 +357,7 @@ end
 local function tpBack()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
 		if v.Owner.Value == Player then
-			safeTeleportToObj(v.Spawn)
+			safeTeleportToPos(v.Spawn.Position)
 		end
 	end
 end
@@ -720,7 +720,7 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToObj(ore)
+				safeTeleportToPos(ore.Position)
 				deleteEntities()
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
@@ -738,7 +738,7 @@ task.spawn(function()
 				local char, hrp = getCharacter()
 				if not char or hrp then continue end
 				
-				hrp.Position = ExcavateLayerLastPos
+				safeTeleportToPos(ExcavateLayerLastPos) 
 			end
 			
 			while ExcateLayerOn do
@@ -752,7 +752,7 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToObj(ore)
+				safeTeleportToPos(ore.Position)
 				deleteEntities()
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
@@ -823,7 +823,7 @@ task.spawn(function()
 
 				-- Teleport to closest block to goal if found
 				if startBlock and startBlock.Parent then
-					safeTeleportToObj(startBlock)
+					safeTeleportToPos(startBlock.Position)
 				end
 			end
 
@@ -853,7 +853,7 @@ task.spawn(function()
 				local tool = equipPickaxeForOre(nextBlock)
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-					safeTeleportToObj(nextBlock)
+					safeTeleportToPos(nextBlock.Position)
 					deleteEntities()
 
 					workspace.CurrentCamera.SelectedItem.Value = nextBlock
