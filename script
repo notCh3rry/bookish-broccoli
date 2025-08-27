@@ -1,4 +1,4 @@
-print("v24")
+print("v25")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -11,7 +11,6 @@ local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 
-local isOpen = false
 local PlayerDetectionOn = true
 local AutoOresOn = false
 local CollectOn = false
@@ -456,7 +455,9 @@ local function findNextStone(originPos)
 
 		if result and result.Instance and result.Instance.Name == "Stone" then
 			local ore = result.Instance
-			if not ore:FindFirstChild("Claimed") and ore.Parent == game.Workspace.Mine then
+			if not ore:FindFirstChild("Claimed") and ore.Parent == game.Workspace.Mine 
+				and (not PlayerDetectionOn or checkPlayerDistance(ore) > SafetyDistance) then
+				
 				local dist = (ore.Position - originPos).Magnitude
 				if not bestStone or dist < bestDist then
 					bestStone = ore
