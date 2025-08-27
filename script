@@ -1,4 +1,4 @@
-print("v29")
+print("v30")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -501,6 +501,9 @@ local function waitForOreMined(ore)
 			break
 		end
 	end
+	
+	local char, hrp = getCharacter()
+	if not char or not hrp then return end
 
 	if progressBar.Visible then
 		local progressFrame = progressBar:FindFirstChild("Frame")
@@ -537,6 +540,17 @@ local function waitForOreMined(ore)
 					ore:Destroy() -- delete stuck ore
 					break
 				end
+			end
+			
+			if not char or hrp then
+				print("Player died, stopped mining")
+				break
+			end
+			
+			if not char:FindFirstChild("Humanoid") or (char:FindFirstChild("Humanoid").Health < 40 and char:FindFirstChild("Humanoid").Health > 10) then
+				print("Player health low, waiting for heal")
+				tpBack()
+				break
 			end
 		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn)
 	end
@@ -693,7 +707,15 @@ end
 task.spawn(function()
 	while task.wait() do
 		local char, hrp = getCharacter()
-		if not hrp then continue end
+		if not char or not hrp or not char:FindFirstChild("Humanoid") then continue end
+		
+		if char.Humanoid.Health < 40 and char.Humanoid.Health > 0 then
+			repeat
+				task.wait(0.1)
+				tpBack()
+			until not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health > 80
+			continue
+		end
 
 		-- Mine reset check
 		if #workspace.Mine:GetChildren() >= BlocksToReset then
@@ -782,8 +804,6 @@ task.spawn(function()
 				if hrp then
 					ExcavateLayerLastPos = hrp.Position
 				end
-				
-				task.wait()
 			end
 		end
 		
