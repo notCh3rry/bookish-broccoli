@@ -1,4 +1,4 @@
-print("v42")
+print("v43")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -662,21 +662,6 @@ local function updateOreLabel()
 	OresLabel.Text = displayText ~= "" and displayText or "No ores selected"
 end
 
-local function deleteEntities()
-	local char, hrp = getCharacter()
-	if not hrp or not char then return end
-	
-	if workspace:FindFirstChild("Entities") then
-		for _, ent in pairs(workspace.Entities:GetChildren()) do
-			if ent:FindFirstChild("Torso") then
-				if (ent.Torso.Position - hrp.Position).Magnitude <= 100 then
-					ent:Destroy()
-				end
-			end
-		end
-	end
-end
-
 local function collectCoins()
 	for _, v in pairs(game.Workspace.Tycoons:GetChildren()) do
 		if v.Owner.Value == Player then
@@ -852,8 +837,11 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToPos(ore.Position)
-				deleteEntities()
+				if ore.Name == "Corium" then
+					safeTeleportToPos(ore.Position + Vector3.new(0, 35, 0))
+				else
+					safeTeleportToPos(ore.Position)
+				end
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
@@ -897,7 +885,6 @@ task.spawn(function()
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 				safeTeleportToPos(ore.Position)
-				deleteEntities()
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
@@ -984,7 +971,6 @@ task.spawn(function()
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 					safeTeleportToPos(nextBlock.Position)
-					deleteEntities()
 
 					workspace.CurrentCamera.SelectedItem.Value = nextBlock
 					tool.SetTarget:InvokeServer(nextBlock)
@@ -1055,11 +1041,15 @@ task.spawn(function()
 								break
 							end
 							
-							local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
-							safeTeleportToPos(backPos)
-							
-							local lookAt = CFrame.lookAt(hrp.Position, zombie.Torso.Position)
-							hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.LookVector:Angle(Vector3.new(0, 0, -1)), 0)
+							if zombie:FindFirstChild("Torso") then
+								local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
+								safeTeleportToPos(backPos)
+							end
+							if zombie:FindFirstChild("Torso") then
+								local lookAt = CFrame.lookAt(hrp.Position, zombie.Torso.Position)
+								hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.LookVector:Angle(Vector3.new(0, 0, -1)), 0)
+							end
+						
 						until not zombie.Parent or not zombie:FindFirstChild("Humanoid") or zombie.Humanoid.Health <= 0 or not zombie.PrimaryPart
 							or not KillZombiesOn or not char or not hrp or not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health <= 0 
 							or (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance)
