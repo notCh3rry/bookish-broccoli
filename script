@@ -1,4 +1,4 @@
-print("v41")
+print("v42")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -1057,6 +1057,9 @@ task.spawn(function()
 							
 							local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
 							safeTeleportToPos(backPos)
+							
+							local lookAt = CFrame.lookAt(hrp.Position, zombie.Torso.Position)
+							hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.LookVector:Angle(Vector3.new(0, 0, -1)), 0)
 						until not zombie.Parent or not zombie:FindFirstChild("Humanoid") or zombie.Humanoid.Health <= 0 or not zombie.PrimaryPart
 							or not KillZombiesOn or not char or not hrp or not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health <= 0 
 							or (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance)
