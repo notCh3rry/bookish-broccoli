@@ -1,4 +1,4 @@
-print("v40")
+print("v41")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -479,7 +479,7 @@ local function checkInventory()
 end
 
 local function checkPlayerDistance(object)
-	local closestDistance = 999999
+	local closestDistance = 9999999
 	for _, plr in pairs(Players:GetChildren()) do
 		if plr ~= Player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 			if (object.Position - plr.Character.HumanoidRootPart.Position).Magnitude < closestDistance then
@@ -1042,7 +1042,7 @@ task.spawn(function()
 					if not char or not hrp then return end
 					
 					local dist = (zombie.Torso.Position - hrp.Position).Magnitude
-					if dist <= range and not (PlayerDetectionOn and checkPlayerDistance(zombie) < SafetyDistance) then
+					if dist <= range and not (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance) then
 						-- equip Newtonium
 						local tool = equipNewtonium()
 						if not tool then return end
@@ -1050,16 +1050,16 @@ task.spawn(function()
 						repeat
 							task.wait()
 							
-							if (PlayerDetectionOn and checkPlayerDistance(zombie) < SafetyDistance) then
+							if zombie.PrimaryPart and (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance) then
 								tpBack()
 								break
 							end
 							
 							local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
 							safeTeleportToPos(backPos)
-						until not zombie.Parent or not zombie:FindFirstChild("Humanoid") or zombie.Humanoid.Health <= 0 
+						until not zombie.Parent or not zombie:FindFirstChild("Humanoid") or zombie.Humanoid.Health <= 0 or not zombie.PrimaryPart
 							or not KillZombiesOn or not char or not hrp or not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health <= 0 
-							or (PlayerDetectionOn and checkPlayerDistance(zombie) < SafetyDistance)
+							or (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance)
 					end
 				end
 			end
