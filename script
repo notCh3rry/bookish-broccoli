@@ -1,4 +1,4 @@
-print("v36")
+print("v37")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -37,8 +37,6 @@ local coordMinerState = {
 	active = false
 }
 
-game.Workspace:WaitForChild("Players"):WaitForChild("Chryslixm"):WaitForChild("AnomalyRunner"):Destroy()
-
 local function getCharacter()
 	-- Wait for character respawn if it's gone
 	if not Player.Character then
@@ -50,6 +48,11 @@ local function getCharacter()
 	local hrp = char:WaitForChild("HumanoidRootPart", 10) -- 10 sec timeout
 	return char, hrp
 end
+
+Player.CharacterAdded:Connect(function(char)
+	char:WaitForChild("AnomalyRunner"):Destroy()
+	print("Anomalyrunner removed")
+end)
 
 -- UI Setup (same as before)
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
@@ -542,7 +545,7 @@ local function waitForOreMined(ore)
 				end
 			end
 			
-			if not char or not hrp then
+			if not char or not hrp or not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health <= 0 then
 				print("Player died, stopped mining")
 				break
 			end
@@ -765,6 +768,9 @@ task.spawn(function()
 		
 		-- AutoOres
 		if AutoOresOn then
+			local char, hrp = getCharacter()
+			if not char or not hrp then break end
+			
 			local orePriorities = getOrePriorities()
 			local oresFound = {}
 			for _, ore in pairs(workspace.Mine:GetChildren()) do
@@ -808,6 +814,9 @@ task.spawn(function()
 			
 			while ExcateLayerOn do
 				if AutoOresOn and getAvailableOreCount() > 0 then break end
+				
+				local char, hrp = getCharacter()
+				if not char or not hrp then break end
 				
 				local ore = findNextStone(hrp.Position)
 				
@@ -889,6 +898,9 @@ task.spawn(function()
 			local reached = false
 			while CoordMinerOn and not reached do
 				if AutoOresOn and getAvailableOreCount() > 0 then break end -- pause if ore spawns
+				
+				local char, hrp = getCharacter()
+				if not char or not hrp then break end
 				
 				if coordMinerState.currentX == coordMinerState.targetX
 					and coordMinerState.currentY == coordMinerState.targetY
