@@ -1,4 +1,4 @@
-print("v34")
+print("v35")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -704,11 +704,10 @@ local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targ
 	return bestBlock
 end
 
-task.spawn(function()
-	while task.wait() do
-		local char, hrp = getCharacter()
-		if not char or not hrp or not char:FindFirstChild("Humanoid") then continue end
-		
+local function checkHealth()
+	local char, hrp = getCharacter()
+	
+	if char and hrp and char:FindFirstChild("Humanoid") then
 		if char.Humanoid.Health < 40 and char.Humanoid.Health > 0 then
 			repeat
 				task.wait(0.1)
@@ -716,8 +715,42 @@ task.spawn(function()
 				print("loop low health, going back")
 			until not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health > 80
 			print("loop low health ended")
-			continue
 		end
+	end
+end
+
+local function getClosestBlockToGoal(tx, ty, tz)
+	local closestDist = math.huge
+	local startBlock
+	for _, block in pairs(workspace.Mine:GetChildren()) do
+		if block and block.Parent and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
+			local bx = math.floor(block.Position.X/6 + 0.5)
+			local by = math.floor((5000 - block.Position.Y)/6 + 0.5)
+			local bz = math.floor(block.Position.Z/6 + 0.5)
+
+			-- Skip blocks too close to a player
+			if PlayerDetectionOn and checkPlayerDistance(block) < SafetyDistance then
+				continue
+			end
+
+			local dist = (Vector3.new(bx, by, bz) - Vector3.new(tx, ty, tz)).Magnitude
+			if dist < closestDist then
+				closestDist = dist
+				startBlock = block
+				coordMinerState.currentX = bx
+				coordMinerState.currentY = by
+				coordMinerState.currentZ = bz
+			end
+		end
+	end
+end
+
+task.spawn(function()
+	while task.wait() do
+		local char, hrp = getCharacter()
+		if not char or not hrp or not char:FindFirstChild("Humanoid") then continue end
+		
+		checkHealth()
 
 		-- Mine reset check
 		if #workspace.Mine:GetChildren() >= BlocksToReset then
@@ -807,6 +840,7 @@ task.spawn(function()
 					ExcavateLayerLastPos = hrp.Position
 				end
 				
+				checkHealth()
 				checkInventory()
 			end
 		end
@@ -838,29 +872,7 @@ task.spawn(function()
 
 				-- Find the block closest to the goal
 				-- Find the block closest to the goal that is not near any player
-				local closestDist = math.huge
-				local startBlock
-				for _, block in pairs(workspace.Mine:GetChildren()) do
-					if block and block.Parent and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
-						local bx = math.floor(block.Position.X/6 + 0.5)
-						local by = math.floor((5000 - block.Position.Y)/6 + 0.5)
-						local bz = math.floor(block.Position.Z/6 + 0.5)
-
-						-- Skip blocks too close to a player
-						if PlayerDetectionOn and checkPlayerDistance(block) < SafetyDistance then
-							continue
-						end
-
-						local dist = (Vector3.new(bx, by, bz) - Vector3.new(tx, ty, tz)).Magnitude
-						if dist < closestDist then
-							closestDist = dist
-							startBlock = block
-							coordMinerState.currentX = bx
-							coordMinerState.currentY = by
-							coordMinerState.currentZ = bz
-						end
-					end
-				end
+				local startBlock = getClosestBlockToGoal(tx, ty, tz)
 
 				coordMinerState.active = true
 
@@ -889,8 +901,7 @@ task.spawn(function()
 
 				-- Goal reached
 				if not nextBlock then
-					reached = true
-					break
+					nextBlock = getClosestBlockToGoal(coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ)
 				end
 
 				local tool = equipPickaxeForOre(nextBlock)
@@ -912,6 +923,7 @@ task.spawn(function()
 				coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 				coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
 				
+				checkHealth()
 				checkInventory()
 			end
 
