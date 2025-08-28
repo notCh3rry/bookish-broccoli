@@ -1,4 +1,4 @@
-print("v37")
+print("v38")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -37,6 +37,8 @@ local coordMinerState = {
 	active = false
 }
 
+game.Workspace:WaitForChild("Players"):WaitForChild("Chryslixm"):WaitForChild("AnomalyRunner"):Destroy()
+
 local function getCharacter()
 	-- Wait for character respawn if it's gone
 	if not Player.Character then
@@ -51,7 +53,6 @@ end
 
 Player.CharacterAdded:Connect(function(char)
 	char:WaitForChild("AnomalyRunner"):Destroy()
-	print("Anomalyrunner removed")
 end)
 
 -- UI Setup (same as before)
@@ -373,12 +374,14 @@ end
 
 local function equipPickaxeForOre(ore)
 	local forge = game.ReplicatedStorage:WaitForChild("Forge")
-	local pickaxeName
-
-	if ore.Name == "Dragonstone" or ore.Name == "Boomite" then
-		pickaxeName = "Dragonglass" -- Dragonglass pickaxe
-	else
-		pickaxeName = "Amethyst" -- Default pickaxe
+	local pickaxeName = "Amethyst"
+	
+	if ore and ore.Parent then
+		if ore.Name == "Dragonstone" or ore.Name == "Boomite" then
+			pickaxeName = "Dragonglass" -- Dragonglass pickaxe
+		else
+			pickaxeName = "Amethyst" -- Default pickaxe
+		end
 	end
 
 	pcall(function()
