@@ -1,4 +1,4 @@
-print("v35")
+print("v36")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -842,6 +842,9 @@ task.spawn(function()
 				
 				checkHealth()
 				checkInventory()
+				if CollectOn then
+					collectCoins()
+				end
 			end
 		end
 		
@@ -925,11 +928,15 @@ task.spawn(function()
 				
 				checkHealth()
 				checkInventory()
+				if CollectOn then
+					collectCoins()
+				end
 			end
 
 			if reached then
 				CoordMinerOn = false
 				CoordMinerButton.Text = "OFF"
+				CoordMinerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 				CoordMinerInput.TextEditable = true
 				local char, hrp = getCharacter()
 				if hrp then
