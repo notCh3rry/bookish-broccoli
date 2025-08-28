@@ -1,4 +1,4 @@
-print("v39")
+print("v40")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -1049,6 +1049,11 @@ task.spawn(function()
 
 						repeat
 							task.wait()
+							
+							if (PlayerDetectionOn and checkPlayerDistance(zombie) < SafetyDistance) then
+								tpBack()
+								break
+							end
 							
 							local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
 							safeTeleportToPos(backPos)
