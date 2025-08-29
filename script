@@ -1,4 +1,4 @@
-print("v43")
+print("v45")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -753,21 +753,6 @@ local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targ
 	return bestBlock
 end
 
-local function checkHealth()
-	local char, hrp = getCharacter()
-	
-	if char and hrp and char:FindFirstChild("Humanoid") then
-		if char.Humanoid.Health < 40 and char.Humanoid.Health > 0 then
-			repeat
-				task.wait(0.1)
-				tpBack()
-				print("loop low health, going back")
-			until not char:FindFirstChild("Humanoid") or char:FindFirstChild("Humanoid").Health > 80
-			print("loop low health ended")
-		end
-	end
-end
-
 local function getClosestBlockToGoal(tx, ty, tz)
 	local closestDist = math.huge
 	local startBlock
@@ -798,8 +783,6 @@ task.spawn(function()
 	while task.wait() do
 		local char, hrp = getCharacter()
 		if not char or not hrp or not char:FindFirstChild("Humanoid") then continue end
-		
-		checkHealth()
 
 		-- Mine reset check
 		if #workspace.Mine:GetChildren() >= BlocksToReset then
@@ -897,7 +880,6 @@ task.spawn(function()
 					ExcavateLayerLastPos = hrp.Position
 				end
 				
-				checkHealth()
 				checkInventory()
 				if CollectOn then
 					collectCoins()
@@ -985,7 +967,6 @@ task.spawn(function()
 				coordMinerState.currentY = math.floor((5000 - pos.Y)/6 + 0.5)
 				coordMinerState.currentZ = math.floor(pos.Z/6 + 0.5)
 				
-				checkHealth()
 				checkInventory()
 				if CollectOn then
 					collectCoins()
