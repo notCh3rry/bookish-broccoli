@@ -1,4 +1,4 @@
-print("v48")
+print("v49")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -27,6 +27,8 @@ local SafetyDistance = 200
 local CollectThreshold = 500
 local DefaultPickaxe = "Newtonium"
 
+local Admins = {"berezaa", "EvilArtist", "company113", "OutOfOrderFoxy", "jackintheblox", "Yamitsu", "NobleDragon"}
+
 local ExcavateLayerLastPos = nil
 
 local coordMinerState = {
@@ -42,19 +44,23 @@ local coordMinerState = {
 game.Workspace:WaitForChild("Players"):WaitForChild("Chryslixm"):WaitForChild("AnomalyRunner"):Destroy()
 
 local function getCharacter()
-	-- Wait for character respawn if it's gone
 	if not Player.Character then
 		Player.CharacterAdded:Wait()
 	end
 
-	-- Wait for HRP in the new character
 	local char = Player.Character
-	local hrp = char:WaitForChild("HumanoidRootPart", 10) -- 10 sec timeout
+	local hrp = char:WaitForChild("HumanoidRootPart", 10)
 	return char, hrp
 end
 
 Player.CharacterAdded:Connect(function(char)
 	char:WaitForChild("AnomalyRunner"):Destroy()
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	if table.find(Admins, plr.Name) then
+		Player:Kick("Admin detected")
+	end
 end)
 
 -- UI Setup (same as before)
@@ -792,6 +798,21 @@ local function getNextBlock(currentX, currentY, currentZ, targetX, targetY, targ
 	return bestBlock
 end
 
+local function isNearEntity(pos)
+	local char, hrp = getCharacter()
+	if not char or not hrp then return end
+	
+	for _, entity in pairs(game.Workspace.Entities:GetChildren()) do
+		if hrp and entity and entity:FindFirstChild("Torso") then
+			if (entity:FindFirstChild("Torso").Position - pos).Magnitude <= 100 then
+				return true
+			end
+		end
+	end
+	
+	return false
+end
+
 local function getClosestBlockToGoal(tx, ty, tz)
 	local closestDist = math.huge
 	local startBlock
@@ -862,7 +883,11 @@ task.spawn(function()
 				if ore.Name == "Corium" then
 					safeTeleportToPos(ore.Position - Vector3.new(0, 36, 0))
 				else
-					safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
+					if isNearEntity(ore.Position) then
+						safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
+					else
+						safeTeleportToPos(ore.Position)
+					end
 				end
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
@@ -906,7 +931,11 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
+				if isNearEntity(ore.Position) then
+					safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
+				else
+					safeTeleportToPos(ore.Position)
+				end
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
@@ -962,7 +991,11 @@ task.spawn(function()
 
 				-- Teleport to closest block to goal if found
 				if startBlock and startBlock.Parent then
-					safeTeleportToPos(startBlock.Position - Vector3.new(0, 6, 0))
+					if isNearEntity(startBlock.Position) then
+						safeTeleportToPos(startBlock.Position - Vector3.new(0, 6, 0))
+					else
+						safeTeleportToPos(startBlock.Position)
+					end
 				end
 			end
 
@@ -997,7 +1030,11 @@ task.spawn(function()
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 					if nextBlock and nextBlock.Parent then
-						safeTeleportToPos(nextBlock.Position - Vector3.new(0, 6, 0))
+						if isNearEntity(nextBlock.Position) then
+							safeTeleportToPos(nextBlock.Position - Vector3.new(0, 6, 0))
+						else
+							safeTeleportToPos(nextBlock.Position)
+						end
 
 						workspace.CurrentCamera.SelectedItem.Value = nextBlock
 						tool.SetTarget:InvokeServer(nextBlock)
