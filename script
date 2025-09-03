@@ -1,4 +1,4 @@
-print("v47")
+print("v48")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -796,7 +796,7 @@ local function getClosestBlockToGoal(tx, ty, tz)
 	local closestDist = math.huge
 	local startBlock
 	for _, block in pairs(workspace.Mine:GetChildren()) do
-		if block and block.Parent and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
+		if block and block.Parent and block:IsA("BasePart") and not block:FindFirstChild("Claimed") and not block:FindFirstChild("PlacedItem") then
 			local bx = math.floor(block.Position.X/6 + 0.5)
 			local by = math.floor((5000 - block.Position.Y)/6 + 0.5)
 			local bz = math.floor(block.Position.Z/6 + 0.5)
