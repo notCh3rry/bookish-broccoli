@@ -1,4 +1,4 @@
-print("v46")
+print("v47")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -860,9 +860,9 @@ task.spawn(function()
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
 				if ore.Name == "Corium" then
-					safeTeleportToPos(ore.Position + Vector3.new(0, 35, 0))
+					safeTeleportToPos(ore.Position - Vector3.new(0, 36, 0))
 				else
-					safeTeleportToPos(ore.Position)
+					safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
 				end
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
@@ -906,7 +906,7 @@ task.spawn(function()
 				if not tool then break end
 
 				if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-				safeTeleportToPos(ore.Position)
+				safeTeleportToPos(ore.Position - Vector3.new(0, 6, 0))
 
 				workspace.CurrentCamera.SelectedItem.Value = ore
 				tool.SetTarget:InvokeServer(ore)
@@ -962,7 +962,7 @@ task.spawn(function()
 
 				-- Teleport to closest block to goal if found
 				if startBlock and startBlock.Parent then
-					safeTeleportToPos(startBlock.Position)
+					safeTeleportToPos(startBlock.Position - Vector3.new(0, 6, 0))
 				end
 			end
 
@@ -986,21 +986,25 @@ task.spawn(function()
 					coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ
 				)
 
-				-- Goal reached
 				if not nextBlock then
-					nextBlock = getClosestBlockToGoal(coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ)
+					repeat
+						task.wait()
+						nextBlock = getClosestBlockToGoal(coordMinerState.targetX, coordMinerState.targetY, coordMinerState.targetZ)
+					until nextBlock and nextBlock.Parent
 				end
 
 				local tool = equipPickaxeForOre(nextBlock)
 				if tool then
 					if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
-					safeTeleportToPos(nextBlock.Position)
+					if nextBlock and nextBlock.Parent then
+						safeTeleportToPos(nextBlock.Position - Vector3.new(0, 6, 0))
 
-					workspace.CurrentCamera.SelectedItem.Value = nextBlock
-					tool.SetTarget:InvokeServer(nextBlock)
-					tool.Activation:FireServer(true)
-					waitForOreMined(nextBlock)
-					tool.Activation:FireServer(false)
+						workspace.CurrentCamera.SelectedItem.Value = nextBlock
+						tool.SetTarget:InvokeServer(nextBlock)
+						tool.Activation:FireServer(true)
+						waitForOreMined(nextBlock)
+						tool.Activation:FireServer(false)
+					end
 				end
 
 				-- Update current coordinates
