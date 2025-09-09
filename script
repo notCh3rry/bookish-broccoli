@@ -1,4 +1,4 @@
-print("v55")
+print("v56")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -909,7 +909,7 @@ task.spawn(function()
 				end
 
 				-- If a nearby block is found, teleport and mine it
-				if nearbyBlock and nearbyBlock.Parent and not nearbyBlock:FindFirstChild("Claimed") then
+				if nearbyBlock and nearbyBlock.Parent == game.Workspace.Mine and not nearbyBlock:FindFirstChild("Claimed") then
 					local char, hrp = getCharacter()
 					if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
 						safeTeleportToPos(nearbyBlock.Position)
