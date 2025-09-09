@@ -1,4 +1,4 @@
-print("v56")
+print("v57")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -961,13 +961,16 @@ task.spawn(function()
 						safeTeleportToPos(ore.Position)
 					end
 				end
-
-				workspace.CurrentCamera.SelectedItem.Value = ore
-				tool.SetTarget:InvokeServer(ore)
-				tool.Activation:FireServer(true)
-				waitForOreMined(ore)
-				tool.Activation:FireServer(false)
-
+				
+				local char, hrp = getCharacter()
+				if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+					workspace.CurrentCamera.SelectedItem.Value = ore
+					tool.SetTarget:InvokeServer(ore)
+					tool.Activation:FireServer(true)
+					waitForOreMined(ore)
+					tool.Activation:FireServer(false)
+				end
+				
 				break
 			end
 		end
