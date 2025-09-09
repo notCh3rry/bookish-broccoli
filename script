@@ -1,4 +1,4 @@
-print("v57")
+print("v59")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -717,6 +717,7 @@ local function killZombies()
 					if zombie:FindFirstChild("Torso") then
 						local char, hrp = getCharacter()
 						if char and hrp then
+							hrp.Anchored = false
 							hrp.Velocity = Vector3.zero
 							hrp.RotVelocity = Vector3.zero
 							
