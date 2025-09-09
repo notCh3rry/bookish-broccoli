@@ -1,4 +1,4 @@
-print("v50")
+print("v51")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -901,6 +901,8 @@ task.spawn(function()
 			}
 
 			for _, newtonium in ipairs(newtoniums) do
+				if not CoriumFarmOn then break end
+				
 				local nearbyBlock = nil
 
 				-- Use raycast to find one nearby block next to Newtonium
