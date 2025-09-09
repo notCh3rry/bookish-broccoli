@@ -1,4 +1,4 @@
-print("v54")
+print("v55")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -597,7 +597,7 @@ local function waitForOreMined(ore)
 				print("Player died, stopped mining")
 				break
 			end
-		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn)
+		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn and not CoriumFarmOn)
 	end
 
 	if not mined and conn then conn:Disconnect() end
@@ -909,7 +909,7 @@ task.spawn(function()
 				end
 
 				-- If a nearby block is found, teleport and mine it
-				if nearbyBlock then
+				if nearbyBlock and nearbyBlock.Parent and not nearbyBlock:FindFirstChild("Claimed") then
 					local char, hrp = getCharacter()
 					if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
 						safeTeleportToPos(nearbyBlock.Position)
