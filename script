@@ -1,4 +1,4 @@
-print("v53")
+print("v54")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -900,7 +900,7 @@ task.spawn(function()
 					local raycastParams = RaycastParams.new()
 					raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 					raycastParams.FilterDescendantsInstances = {char} -- Ignore player
-					local result = workspace:Raycast(origin, dir * 4, raycastParams) -- 4 studs = 1 block approx
+					local result = workspace:Raycast(origin, dir * 6, raycastParams) -- 4 studs = 1 block approx
 
 					if result and result.Instance and result.Instance.Name ~= "Newtonium" and result.Instance.Name ~= "Corium" then
 						nearbyBlock = result.Instance
@@ -910,12 +910,17 @@ task.spawn(function()
 
 				-- If a nearby block is found, teleport and mine it
 				if nearbyBlock then
-					safeTeleportToPos(nearbyBlock.Position)
-					workspace.CurrentCamera.SelectedItem.Value = nearbyBlock
-					tool.SetTarget:InvokeServer(nearbyBlock)
-					tool.Activation:FireServer(true)
-					waitForOreMined(nearbyBlock)
-					tool.Activation:FireServer(false)
+					local char, hrp = getCharacter()
+					if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+						safeTeleportToPos(nearbyBlock.Position)
+						if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+							workspace.CurrentCamera.SelectedItem.Value = nearbyBlock
+							tool.SetTarget:InvokeServer(nearbyBlock)
+							tool.Activation:FireServer(true)
+							waitForOreMined(nearbyBlock)
+							tool.Activation:FireServer(false)
+						end
+					end
 				end
 			end
 			
