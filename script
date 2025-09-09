@@ -1,4 +1,4 @@
-print("v52")
+print("v53")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -875,18 +875,6 @@ task.spawn(function()
 				end
 			end
 
-			-- Function to check safe distance from Coriums
-			local function isSafeFromCorium(pos)
-				for _, corium in ipairs(mineFolder:GetDescendants()) do
-					if corium:IsA("BasePart") and corium.Name == "Corium" then
-						if (corium.Position - pos).Magnitude / workspace:GetExtentsSize().Magnitude * 100 < 27 then
-							return false
-						end
-					end
-				end
-				return true
-			end
-
 			-- Directions to check for adjacent blocks (including diagonals)
 			local directions = {
 				Vector3.new(1,0,0), Vector3.new(-1,0,0),
@@ -915,10 +903,8 @@ task.spawn(function()
 					local result = workspace:Raycast(origin, dir * 4, raycastParams) -- 4 studs = 1 block approx
 
 					if result and result.Instance and result.Instance.Name ~= "Newtonium" and result.Instance.Name ~= "Corium" then
-						if isSafeFromCorium(result.Position) then
-							nearbyBlock = result.Instance
-							break
-						end
+						nearbyBlock = result.Instance
+						break
 					end
 				end
 
