@@ -1,4 +1,4 @@
-print("v50")
+print("v51")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -1089,7 +1089,8 @@ task.spawn(function()
 		if CollectOn then
 			collectCoins()
 		end
-		if PlayerDetectionOn and checkPlayerDistance() < SafetyDistance then
+		local char, hrp = getCharacter()
+		if PlayerDetectionOn and char and hrp and checkPlayerDistance(hrp) < SafetyDistance then
 			tpBack()
 		end
 	end
