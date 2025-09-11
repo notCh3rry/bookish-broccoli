@@ -1,4 +1,4 @@
-print("v51")
+print("v60")
 
 spawn(function()
 	loadstring(game:HttpGet("https://pastebin.com/raw/6ngxJT8b"))() --freecam lshift+p
@@ -16,7 +16,7 @@ local AutoOresOn = false
 local CollectOn = false
 local CoordMinerOn = false
 local Rendering = true
-local Fullbright = false
+local CoriumFarmOn = false
 local ExcateLayerOn = false
 local KillZombiesOn = false
 local platform
@@ -278,23 +278,23 @@ RenderingButton.Activated:Connect(function()
 	end
 end)
 
-local FullbrightButton = Instance.new("TextButton", MainFrame)
-FullbrightButton.Size = UDim2.new(0.45, 0, 0.033, 0)
-FullbrightButton.Position = UDim2.new(0.032, 0, 0.187, 0)
-FullbrightButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
-FullbrightButton.BorderSizePixel = 0
-FullbrightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FullbrightButton.TextScaled = true
-FullbrightButton.Font = Enum.Font.Highway
-FullbrightButton.Text = "Fullbright: OFF"
-FullbrightButton.Activated:Connect(function()
-	Fullbright = not Fullbright
-	if Fullbright then
-		FullbrightButton.Text = "Fullbright: ON"
-		FullbrightButton.TextColor3 = Color3.fromRGB(170, 255, 165)
+local CoriumFarmButton = Instance.new("TextButton", MainFrame)
+CoriumFarmButton.Size = UDim2.new(0.45, 0, 0.033, 0)
+CoriumFarmButton.Position = UDim2.new(0.032, 0, 0.187, 0)
+CoriumFarmButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+CoriumFarmButton.BorderSizePixel = 0
+CoriumFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CoriumFarmButton.TextScaled = true
+CoriumFarmButton.Font = Enum.Font.Highway
+CoriumFarmButton.Text = "Corium: OFF"
+CoriumFarmButton.Activated:Connect(function()
+	CoriumFarmOn = not CoriumFarmOn
+	if CoriumFarmOn then
+		CoriumFarmButton.Text = "Corium: ON"
+		CoriumFarmButton.TextColor3 = Color3.fromRGB(170, 255, 165)
 	else
-		FullbrightButton.Text = "Fullbright: OFF"
-		FullbrightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		CoriumFarmButton.Text = "Corium: OFF"
+		CoriumFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	end
 end)
 
@@ -597,16 +597,16 @@ local function waitForOreMined(ore)
 				print("Player died, stopped mining")
 				break
 			end
-		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn)
+		until mined or not progressBar.Visible or (not AutoOresOn and not CoordMinerOn and not CoriumFarmOn)
 	end
 
 	if not mined and conn then conn:Disconnect() end
 end
 
-local function equipNewtonium()
+local function equipSpecific(pickaxeName)
 	local forge = game.ReplicatedStorage:WaitForChild("Forge")
 	pcall(function()
-		forge:InvokeServer("Newtonium")
+		forge:InvokeServer(pickaxeName)
 	end)
 
 	local char, hrp = getCharacter()
@@ -696,14 +696,14 @@ local function killZombies()
 
 	for _, zombie in pairs(workspace.Entities:GetChildren()) do
 		if not KillZombiesOn then break end
-		if zombie.Name == "Zombie" and zombie:FindFirstChild("Torso") and zombie:FindFirstChild("Humanoid") then
+		if zombie.Name == "Zombie" and zombie:FindFirstChild("Torso") and zombie:FindFirstChild("Humanoid") and zombie:FindFirstChild("Humanoid").Health > 0 then
 			local char, hrp = getCharacter()
 			if not char or not hrp then return end
 
 			local dist = (zombie.Torso.Position - hrp.Position).Magnitude
 			if dist <= range and not (PlayerDetectionOn and checkPlayerDistance(zombie.PrimaryPart) < SafetyDistance) then
 				-- equip Newtonium
-				local tool = equipNewtonium()
+				local tool = equipSpecific("Newtonium")
 				if not tool then return end
 
 				repeat
@@ -715,12 +715,15 @@ local function killZombies()
 					end
 
 					if zombie:FindFirstChild("Torso") then
-						local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
-						safeTeleportToPos(backPos)
-					end
-					if zombie:FindFirstChild("Torso") then
-						local lookAt = CFrame.lookAt(hrp.Position, zombie.Torso.Position)
-						hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.LookVector:Angle(Vector3.new(0, 0, -1)), 0)
+						local char, hrp = getCharacter()
+						if char and hrp then
+							hrp.Anchored = false
+							hrp.Velocity = Vector3.zero
+							hrp.RotVelocity = Vector3.zero
+							
+							local backPos = zombie.Torso.Position - (zombie.Torso.CFrame.LookVector * 2)
+							hrp.CFrame = CFrame.new(backPos) * CFrame.Angles(0, (zombie.Torso.Position - backPos).Unit:Angle(Vector3.new(0,0,-1)), 0)
+						end
 					end
 
 				until not zombie.Parent or not zombie:FindFirstChild("Humanoid") or zombie.Humanoid.Health <= 0 or not zombie.PrimaryPart
@@ -855,6 +858,76 @@ task.spawn(function()
 			continue
 		end
 		
+		if CoriumFarmOn then
+			local char, hrp = getCharacter()
+			if not char or not hrp then return end
+
+			local tool = equipSpecific("Boomite")
+			if not tool then return end
+			if tool:FindFirstChild("PickaxeScript") then tool.PickaxeScript.Enabled = false end
+
+			local mineFolder = workspace.Mine
+
+			-- Collect all Newtonium blocks
+			local newtoniums = {}
+			for _, block in ipairs(mineFolder:GetDescendants()) do
+				if block:IsA("BasePart") and block.Name == "Newtonium" then
+					table.insert(newtoniums, block)
+				end
+			end
+
+			-- Directions to check for adjacent blocks (including diagonals)
+			local directions = {
+				Vector3.new(1,0,0), Vector3.new(-1,0,0),
+				Vector3.new(0,1,0), Vector3.new(0,-1,0),
+				Vector3.new(0,0,1), Vector3.new(0,0,-1),
+				Vector3.new(1,0,1), Vector3.new(-1,0,1),
+				Vector3.new(1,0,-1), Vector3.new(-1,0,-1),
+				Vector3.new(1,1,0), Vector3.new(-1,1,0),
+				Vector3.new(0,1,1), Vector3.new(0,1,-1),
+				Vector3.new(1,-1,0), Vector3.new(-1,-1,0),
+				Vector3.new(0,-1,1), Vector3.new(0,-1,-1)
+			}
+
+			for _, newtonium in ipairs(newtoniums) do
+				if not CoriumFarmOn then break end
+				if PlayerDetectionOn and checkPlayerDistance(newtonium) < SafetyDistance then break end
+				
+				local nearbyBlock = nil
+
+				-- Use raycast to find one nearby block next to Newtonium
+				for _, dir in ipairs(directions) do
+					local origin = newtonium.Position
+					local raycastParams = RaycastParams.new()
+					raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+					raycastParams.FilterDescendantsInstances = {char} -- Ignore player
+					local result = workspace:Raycast(origin, dir * 6, raycastParams) -- 4 studs = 1 block approx
+
+					if result and result.Instance and result.Instance.Name ~= "Newtonium" and result.Instance.Name ~= "Corium" then
+						nearbyBlock = result.Instance
+						break
+					end
+				end
+
+				-- If a nearby block is found, teleport and mine it
+				if nearbyBlock and nearbyBlock.Parent == game.Workspace.Mine and not nearbyBlock:FindFirstChild("Claimed") then
+					local char, hrp = getCharacter()
+					if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+						safeTeleportToPos(nearbyBlock.Position)
+						if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+							workspace.CurrentCamera.SelectedItem.Value = nearbyBlock
+							tool.SetTarget:InvokeServer(nearbyBlock)
+							tool.Activation:FireServer(true)
+							waitForOreMined(nearbyBlock)
+							tool.Activation:FireServer(false)
+						end
+					end
+				end
+			end
+			
+			continue
+		end
+		
 		-- AutoOres
 		if AutoOresOn then
 			local char, hrp = getCharacter()
@@ -889,13 +962,16 @@ task.spawn(function()
 						safeTeleportToPos(ore.Position)
 					end
 				end
-
-				workspace.CurrentCamera.SelectedItem.Value = ore
-				tool.SetTarget:InvokeServer(ore)
-				tool.Activation:FireServer(true)
-				waitForOreMined(ore)
-				tool.Activation:FireServer(false)
-
+				
+				local char, hrp = getCharacter()
+				if char and hrp and char:FindFirstChild("Humanoid") and char:FindFirstChild("Humanoid").Health > 0 then
+					workspace.CurrentCamera.SelectedItem.Value = ore
+					tool.SetTarget:InvokeServer(ore)
+					tool.Activation:FireServer(true)
+					waitForOreMined(ore)
+					tool.Activation:FireServer(false)
+				end
+				
 				break
 			end
 		end
@@ -1112,4 +1188,3 @@ task.spawn(function()
 		updateOreLabel()
 	end
 end)
-
