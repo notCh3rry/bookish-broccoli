@@ -1,45 +1,100 @@
+-- SERVICES
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
 local RepStore = game:GetService("ReplicatedStorage")
 
--- Remotes
+local player = Players.LocalPlayer
+
+-- REMOTES
 local RemoteEvents = RepStore:WaitForChild("RemoteEvents")
 local RemoteFunctions = RepStore:WaitForChild("RemoteFunctions")
 local SelectIndustry = RemoteEvents:WaitForChild("SelectNewIndusty")
 local ApplyNewSetting = RemoteFunctions:WaitForChild("ApplyNewSetting")
 local UpdateIndustries = RemoteEvents:WaitForChild("UpdateIndustries")
 
--- ===================== NUMBER PARSER =====================
+------------------------------------------------------------
+-- UI
+------------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Position = UDim2.new(0.1, 0, 0.388, 0)
+MainFrame.Size = UDim2.new(0, 155, 0, 115)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+
+local AutoProgressionButton = Instance.new("TextButton", MainFrame)
+AutoProgressionButton.Position = UDim2.new(0.032, 0, 0.065, 0)
+AutoProgressionButton.Size = UDim2.new(0, 145, 0, 17)
+AutoProgressionButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+AutoProgressionButton.BorderSizePixel = 0
+AutoProgressionButton.Font = Enum.Font.Highway
+AutoProgressionButton.TextSize = 15
+AutoProgressionButton.TextStrokeTransparency = 1
+
+local IndustryLabel = Instance.new("TextLabel", MainFrame)
+IndustryLabel.Position = UDim2.new(0.032, 0, 0.489, 0)
+IndustryLabel.Size = UDim2.new(0, 145, 0, 15)
+IndustryLabel.BackgroundTransparency = 1
+IndustryLabel.TextColor3 = Color3.fromRGB(255,255,255)
+IndustryLabel.Font = Enum.Font.Highway
+IndustryLabel.TextSize = 14
+
+local CurrentActionLabel = Instance.new("TextLabel", MainFrame)
+CurrentActionLabel.Position = UDim2.new(0.032, 0, 0.619, 0)
+CurrentActionLabel.Size = UDim2.new(0, 145, 0, 37)
+CurrentActionLabel.BackgroundTransparency = 1
+CurrentActionLabel.TextColor3 = Color3.fromRGB(255,255,255)
+CurrentActionLabel.Font = Enum.Font.Highway
+CurrentActionLabel.TextSize = 14
+CurrentActionLabel.TextWrapped = true
+
+------------------------------------------------------------
+-- UI STATE
+------------------------------------------------------------
+local autoProgressEnabled = false
+
+local function updateAutoProgressUI()
+    if autoProgressEnabled then
+        AutoProgressionButton.Text = "Auto Progress: ON"
+        AutoProgressionButton.TextColor3 = Color3.fromRGB(120,255,120)
+    else
+        AutoProgressionButton.Text = "Auto Progress: OFF"
+        AutoProgressionButton.TextColor3 = Color3.fromRGB(255,96,96)
+        IndustryLabel.Text = "Industry: None"
+        CurrentActionLabel.Text = "Current Action: None"
+    end
+end
+
+updateAutoProgressUI()
+
+AutoProgressionButton.MouseButton1Click:Connect(function()
+    autoProgressEnabled = not autoProgressEnabled
+    updateAutoProgressUI()
+end)
+
+------------------------------------------------------------
+-- NUMBER PARSER
+------------------------------------------------------------
 local SUFFIX_MULTIPLIERS = {
-    K  = 1e3,
-    M  = 1e6,
-    B  = 1e9,
-    T  = 1e12,
-    Q  = 1e15,
-    Qn = 1e18,
-    S  = 1e21,
-    Sp = 1e24,
-    Oc = 1e27,
+    K=1e3,M=1e6,B=1e9,T=1e12,Q=1e15,Qn=1e18,S=1e21,Sp=1e24,Oc=1e27
 }
 
 local function parseAbbreviatedNumber(text)
     if not text then return nil end
     local clean = tostring(text):gsub(",", ""):gsub("%s+", ""):gsub("[%$]", "")
-
-    for suffix, mult in pairs(SUFFIX_MULTIPLIERS) do
+    for suffix,mult in pairs(SUFFIX_MULTIPLIERS) do
         if clean:sub(-#suffix) == suffix then
-            local numberPart = clean:sub(1, -#suffix-1)
-            local num = tonumber(numberPart)
-            if num then
-                return num * mult
-            end
+            local n = tonumber(clean:sub(1, -#suffix-1))
+            if n then return n * mult end
         end
     end
-
-    return tonumber(clean) or nil
+    return tonumber(clean)
 end
 
--- ===================== UTIL =====================
+------------------------------------------------------------
+-- UTIL
+------------------------------------------------------------
 local function getRoot()
     local char = player.Character or player.CharacterAdded:Wait()
     return char:WaitForChild("HumanoidRootPart")
@@ -47,160 +102,128 @@ end
 
 local function getMoneyRaw()
     local stats = player:FindFirstChild("leaderstats")
-    if not stats then return 0 end
-    local money = stats:FindFirstChild("Money")
-    if not money then return 0 end
-    return parseAbbreviatedNumber(money.Value) or 0
+    local money = stats and stats:FindFirstChild("Money")
+    return money and parseAbbreviatedNumber(money.Value) or 0
 end
 
+------------------------------------------------------------
+-- TYCOON SETUP
+------------------------------------------------------------
 local function getClosestTycoon()
     local root = getRoot()
-    local closest = nil
-    local minDist = math.huge
-
-    for _, tycoonBase in ipairs(game.Workspace.TycoonLocations:GetChildren()) do
-        if tycoonBase:IsA("BasePart") then
-            local dist = (tycoonBase.Position - root.Position).Magnitude
-            if dist < minDist then
-                minDist = dist
-                closest = tycoonBase
+    local closest,dist = nil,math.huge
+    for _,p in ipairs(workspace.TycoonLocations:GetChildren()) do
+        if p:IsA("BasePart") then
+            local d = (p.Position-root.Position).Magnitude
+            if d < dist then
+                dist = d
+                closest = p
             end
         end
     end
-
     return closest
 end
 
--- ===================== INDUSTRY LOGIC =====================
--- ===================== INDUSTRY LOGIC (SAFEGUARDED) =====================
+local tycoon = getClosestTycoon()
+if not tycoon then return end
+
+local buttonsFolder = workspace.Tycoons[tycoon.Name]:WaitForChild("PurchaseableModels")
+
+------------------------------------------------------------
+-- INDUSTRY MANAGER
+------------------------------------------------------------
 local industryLevels = {}
 local managerActive = false
-local lastSelectedIndustry = nil
+local lastIndustry = nil
 
 UpdateIndustries.OnClientEvent:Connect(function(data)
     industryLevels = data
 end)
 
 local function updateIndustryManager()
-    local bestName = nil
-    local bestValue = -math.huge
+    local bestName,bestValue = nil,-math.huge
     local hasAbove100 = false
 
-    for name, value in pairs(industryLevels) do
-        if value >= 1 then
-            hasAbove100 = true
-        end
+    for name,value in pairs(industryLevels) do
+        if value >= 1 then hasAbove100 = true end
         if value > bestValue then
             bestValue = value
             bestName = name
         end
     end
 
-    -- === TURN OFF MANAGER ===
     if not hasAbove100 then
         if managerActive then
-            ApplyNewSetting:InvokeServer("UseManager", 0)
-            print("[DEBUG] Manager OFF (all industries < 100%)")
+            CurrentActionLabel.Text = "Current Action: Turning off industry"
+            ApplyNewSetting:InvokeServer("UseManager",0)
             managerActive = false
-            lastSelectedIndustry = nil
+            lastIndustry = nil
+            IndustryLabel.Text = "Industry: None"
         end
         return
     end
 
-    -- === TURN ON MANAGER ===
     if not managerActive then
-        ApplyNewSetting:InvokeServer("UseManager", 1)
-        print("[DEBUG] Manager ON")
+        CurrentActionLabel.Text = "Current Action: Turning on industry"
+        ApplyNewSetting:InvokeServer("UseManager",1)
         managerActive = true
     end
 
-    -- === SELECT BEST INDUSTRY (ONLY IF CHANGED) ===
-    if bestName and bestName ~= lastSelectedIndustry then
+    if bestName and bestName ~= lastIndustry then
+        CurrentActionLabel.Text = "Current Action: Switching industry to "..bestName
+        IndustryLabel.Text = "Industry: "..bestName
         SelectIndustry:FireServer(bestName)
-        print("[DEBUG] Switching industry to:", bestName, "Efficiency:", bestValue)
-        lastSelectedIndustry = bestName
+        lastIndustry = bestName
     end
 end
 
--- ===================== INITIALIZE =====================
-local closestTycoon = getClosestTycoon()
-if not closestTycoon then
-    warn("No tycoon found!")
-    return
-end
+------------------------------------------------------------
+-- MAIN LOOP (1 SECOND)
+------------------------------------------------------------
+while task.wait(1) do
+    if not autoProgressEnabled then continue end
 
-local tycoonName = tostring(closestTycoon.Name)
-local tycoonFolder = game.Workspace.Tycoons:FindFirstChild(tycoonName)
-if not tycoonFolder then
-    warn("Tycoon folder not found: " .. tycoonName)
-    return
-end
+    local cheapest,cheapestPrice,freeBtn
 
-local tycoonButtonsFolder = tycoonFolder:FindFirstChild("PurchaseableModels")
-if not tycoonButtonsFolder then
-    warn("PurchaseableModels not found in tycoon: " .. tycoonName)
-    return
-end
+    for i,model in ipairs(buttonsFolder:GetChildren()) do
+        local btn = model:FindFirstChild("Button")
+        local priceLabel = btn and btn:FindFirstChild("Price",true)
+        if not priceLabel then continue end
 
--- ===================== MAIN LOOP =====================
-while task.wait(0.5) do
-    -- === TELEPORT TO BUTTON LOGIC ===
-    local lowestPrice = math.huge
-    local cheapestButton = nil
-    local cheapestPrice = nil
-    local freeButton = nil
+        local text = priceLabel.Text
+        if text:find("Tokens") then continue end
 
-    for _, model in ipairs(tycoonButtonsFolder:GetChildren()) do
-        local buttonModel = model:FindFirstChild("Button")
-        if not buttonModel then continue end
-
-        local priceLabel = buttonModel:FindFirstChild("Price", true)
-        if not priceLabel or not priceLabel:IsA("TextLabel") then continue end
-
-        local priceText = priceLabel.Text
-        if priceText:find("Tokens") then continue end
-
-        -- Find the physical BasePart button
-        local physicalButton = nil
-        for _, obj in ipairs(buttonModel:GetDescendants()) do
-            if obj.Name == "Button" and obj:IsA("BasePart") then
-                physicalButton = obj
-                break
-            end
+        local physical
+        for _,d in ipairs(btn:GetDescendants()) do
+            if d:IsA("BasePart") and d.Name=="Button" then physical=d break end
         end
-        if not physicalButton then continue end
+        if not physical then continue end
 
-        -- FREE buttons override everything
-        if priceText:find("FREE%(PREBOUGHT%)") then
-            freeButton = physicalButton
-            print("[DEBUG] FREE button found:", physicalButton:GetFullName())
-            continue
+        if text:find("FREE%(PREBOUGHT%)") then
+            freeBtn = {part=physical,index=i}
+            break
         end
 
-        -- Paid buttons
-        local price = parseAbbreviatedNumber(priceText)
-        if price then
-            if price < lowestPrice then
-                lowestPrice = price
-                cheapestButton = physicalButton
-                cheapestPrice = price
-            end
+        local price = parseAbbreviatedNumber(text)
+        if price and (not cheapestPrice or price < cheapestPrice) then
+            cheapest = {part=physical,index=i}
+            cheapestPrice = price
         end
     end
 
-    local targetButton = freeButton or cheapestButton
-    local targetPrice  = freeButton and 0 or cheapestPrice
+    local target = freeBtn or cheapest
+    if target then
+        local cost = freeBtn and 0 or cheapestPrice
+        local money = getMoneyRaw()
 
-    if targetButton then
-        local playerMoney = getMoneyRaw()
-        if playerMoney >= (targetPrice or 0) then
-            getRoot().CFrame = targetButton.CFrame + Vector3.new(0, 3, 0)
-            print("[DEBUG] Teleporting to:", targetButton:GetFullName())
+        if money >= cost then
+            CurrentActionLabel.Text = "Current Action: Buying button "..target.index
+            getRoot().CFrame = target.part.CFrame + Vector3.new(0,3,0)
         else
-            print("[DEBUG] Not enough money to teleport. PlayerMoney:", playerMoney, "Price:", targetPrice)
+            CurrentActionLabel.Text =
+                "Current Action: Waiting for $"..tostring(cost).." to buy button "..target.index
         end
     end
 
-    -- === INDUSTRY MANAGER LOGIC ===
     updateIndustryManager()
 end
