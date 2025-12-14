@@ -1,3 +1,4 @@
+print("v2")
 -- SERVICES
 local Players = game:GetService("Players")
 local RepStore = game:GetService("ReplicatedStorage")
@@ -46,8 +47,7 @@ CurrentActionLabel.Size = UDim2.new(0, 145, 0, 37)
 CurrentActionLabel.BackgroundTransparency = 1
 CurrentActionLabel.TextColor3 = Color3.fromRGB(255,255,255)
 CurrentActionLabel.Font = Enum.Font.Highway
-CurrentActionLabel.TextSize = 14
-CurrentActionLabel.TextWrapped = true
+CurrentActionLabel.TextScaled = true
 
 ------------------------------------------------------------
 -- UI STATE
@@ -195,18 +195,31 @@ while task.wait(1) do
 
         local physical
         for _,d in ipairs(btn:GetDescendants()) do
-            if d:IsA("BasePart") and d.Name=="Button" then physical=d break end
+            if d:IsA("BasePart") and d.Name=="Button" then
+                physical = d
+                break
+            end
         end
         if not physical then continue end
 
+        -- 🔹 READ BUTTON NAME (SAFE)
+        local buttonName
+        local ui = btn:FindFirstChild("UI", true)
+        if ui then
+            local nameLabel = ui:FindFirstChild("Name", true)
+            if nameLabel and nameLabel:IsA("TextLabel") then
+                buttonName = nameLabel.Text
+            end
+        end
+
         if text:find("FREE%(PREBOUGHT%)") then
-            freeBtn = {part=physical,index=i}
+            freeBtn = {part=physical,index=i,name=buttonName}
             break
         end
 
         local price = parseAbbreviatedNumber(text)
         if price and (not cheapestPrice or price < cheapestPrice) then
-            cheapest = {part=physical,index=i}
+            cheapest = {part=physical,index=i,name=buttonName}
             cheapestPrice = price
             baseText = text
         end
@@ -216,13 +229,14 @@ while task.wait(1) do
     if target then
         local cost = freeBtn and 0 or cheapestPrice
         local money = getMoneyRaw()
+        local displayName = target.name or ("button "..target.index)
 
         if money >= cost then
-            CurrentActionLabel.Text = "Current Action: Buying button "..target.index
+            CurrentActionLabel.Text = "Current Action: Buying "..displayName
             getRoot().CFrame = target.part.CFrame + Vector3.new(0,3,0)
         else
             CurrentActionLabel.Text =
-                "Current Action: Waiting for "..baseText.." to buy button "..target.index
+                "Current Action: Waiting for "..baseText.." to buy "..displayName
         end
     end
 
