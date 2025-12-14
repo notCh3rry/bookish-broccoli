@@ -1,4 +1,4 @@
-print("v3")
+print("v4")
 -- SERVICES
 local Players = game:GetService("Players")
 local RepStore = game:GetService("ReplicatedStorage")
@@ -273,6 +273,12 @@ while task.wait(1) do
 
     -- 🔹 AUTO COLLECT
     if autoCollectEnabled then
+        local textPart = workspace:FindFirstChild("Text")
+        if textPart then
+            -- Teleport to workspace.Text first
+            getRoot().CFrame = textPart.CFrame + Vector3.new(0,3,0)
+        end
+    
         for _,item in ipairs(workspace.Growables:GetChildren()) do
             if item:IsA("BasePart") then
                 CurrentActionLabel.Text = "Current Action: Collecting "..item.Name
@@ -280,6 +286,7 @@ while task.wait(1) do
             end
         end
     end
+
 
     -- 🔹 AUTO PROGRESSION
     if autoProgressEnabled and target then
