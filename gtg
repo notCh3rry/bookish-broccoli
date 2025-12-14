@@ -72,8 +72,10 @@ local function getClosestTycoon()
 end
 
 -- ===================== INDUSTRY LOGIC =====================
-local industryLevels = {} -- updated from server
+-- ===================== INDUSTRY LOGIC (SAFEGUARDED) =====================
+local industryLevels = {}
 local managerActive = false
+local lastSelectedIndustry = nil
 
 UpdateIndustries.OnClientEvent:Connect(function(data)
     industryLevels = data
@@ -85,7 +87,7 @@ local function updateIndustryManager()
     local hasAbove100 = false
 
     for name, value in pairs(industryLevels) do
-        if value >= 1 then -- 100% threshold
+        if value >= 1 then
             hasAbove100 = true
         end
         if value > bestValue then
@@ -94,27 +96,29 @@ local function updateIndustryManager()
         end
     end
 
+    -- === TURN OFF MANAGER ===
     if not hasAbove100 then
-        -- Turn off via server if it was on
         if managerActive then
             ApplyNewSetting:InvokeServer("UseManager", 0)
-            print("[DEBUG] All industries below 100%, turning off manager")
+            print("[DEBUG] Manager OFF (all industries < 100%)")
             managerActive = false
+            lastSelectedIndustry = nil
         end
         return
     end
 
-    -- Turn on manager if off
+    -- === TURN ON MANAGER ===
     if not managerActive then
         ApplyNewSetting:InvokeServer("UseManager", 1)
-        print("[DEBUG] Turning manager ON")
+        print("[DEBUG] Manager ON")
         managerActive = true
     end
 
-    -- Select the best industry
-    if bestName then
+    -- === SELECT BEST INDUSTRY (ONLY IF CHANGED) ===
+    if bestName and bestName ~= lastSelectedIndustry then
         SelectIndustry:FireServer(bestName)
-        print("[DEBUG] Selecting Industry:", bestName, "Efficiency:", bestValue)
+        print("[DEBUG] Switching industry to:", bestName, "Efficiency:", bestValue)
+        lastSelectedIndustry = bestName
     end
 end
 
