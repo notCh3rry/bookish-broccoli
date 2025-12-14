@@ -1,7 +1,8 @@
-print("v2")
+print("v3")
 -- SERVICES
 local Players = game:GetService("Players")
 local RepStore = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
@@ -29,9 +30,22 @@ AutoProgressionButton.Position = UDim2.new(0.032, 0, 0.065, 0)
 AutoProgressionButton.Size = UDim2.new(0, 145, 0, 17)
 AutoProgressionButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
 AutoProgressionButton.BorderSizePixel = 0
+AutoProgressionButton.TextColor3 = Color3.fromRGB(255, 96, 96)
 AutoProgressionButton.Font = Enum.Font.Highway
 AutoProgressionButton.TextSize = 15
 AutoProgressionButton.TextStrokeTransparency = 1
+AutoProgressionButton.Text = "Auto Progression: OFF"
+
+local AutoCollectButton = Instance.new("TextButton", MainFrame)
+AutoCollectButton.Position = UDim2.new(0.032, 0, 0.277, 0)
+AutoCollectButton.Size = UDim2.new(0, 145, 0, 17)
+AutoCollectButton.BackgroundColor3 = Color3.fromRGB(56, 56, 56)
+AutoCollectButton.BorderSizePixel = 0
+AutoCollectButton.TextColor3 = Color3.fromRGB(255, 96, 96)
+AutoCollectButton.Font = Enum.Font.Highway
+AutoCollectButton.TextSize = 15
+AutoCollectButton.TextStrokeTransparency = 1
+AutoCollectButton.Text = "Auto Collect: OFF"
 
 local IndustryLabel = Instance.new("TextLabel", MainFrame)
 IndustryLabel.Position = UDim2.new(0.032, 0, 0.489, 0)
@@ -53,6 +67,8 @@ CurrentActionLabel.TextScaled = true
 -- UI STATE
 ------------------------------------------------------------
 local autoProgressEnabled = false
+local autoCollectEnabled = false
+local tweening = false
 
 local function updateAutoProgressUI()
     if autoProgressEnabled then
@@ -66,12 +82,28 @@ local function updateAutoProgressUI()
     end
 end
 
-updateAutoProgressUI()
+local function updateAutoCollectUI()
+    if autoCollectEnabled then
+        AutoCollectButton.Text = "Auto Collect: ON"
+        AutoCollectButton.TextColor3 = Color3.fromRGB(120,255,120)
+    else
+        AutoCollectButton.Text = "Auto Collect: OFF"
+        AutoCollectButton.TextColor3 = Color3.fromRGB(255,96,96)
+    end
+end
 
 AutoProgressionButton.MouseButton1Click:Connect(function()
     autoProgressEnabled = not autoProgressEnabled
     updateAutoProgressUI()
 end)
+
+AutoCollectButton.MouseButton1Click:Connect(function()
+    autoCollectEnabled = not autoCollectEnabled
+    updateAutoCollectUI()
+end)
+
+updateAutoProgressUI()
+updateAutoCollectUI()
 
 ------------------------------------------------------------
 -- NUMBER PARSER
@@ -104,6 +136,17 @@ local function getMoneyRaw()
     local stats = player:FindFirstChild("leaderstats")
     local money = stats and stats:FindFirstChild("Money")
     return money and parseAbbreviatedNumber(money.Value) or 0
+end
+
+local function tweenToPosition(pos, duration)
+    local root = getRoot()
+    tweening = true
+    local tweenInfo = TweenInfo.new(duration or 0.5, Enum.EasingStyle.Linear)
+    local goal = {CFrame = CFrame.new(pos)}
+    local tween = TweenService:Create(root, tweenInfo, goal)
+    tween:Play()
+    tween.Completed:Wait()
+    tweening = false
 end
 
 ------------------------------------------------------------
@@ -181,7 +224,7 @@ end
 -- MAIN LOOP (1 SECOND)
 ------------------------------------------------------------
 while task.wait(1) do
-    if not autoProgressEnabled then continue end
+    updateIndustryManager()
 
     local cheapest,cheapestPrice,freeBtn,baseText
 
@@ -226,19 +269,31 @@ while task.wait(1) do
     end
 
     local target = freeBtn or cheapest
-    if target then
+    local money = getMoneyRaw()
+
+    -- 🔹 AUTO COLLECT
+    if autoCollectEnabled then
+        for _,item in ipairs(workspace.Growables:GetChildren()) do
+            if item:IsA("BasePart") then
+                CurrentActionLabel.Text = "Current Action: Collecting "..item.Name
+                tweenToPosition(item.Position + Vector3.new(0,3,0), 0.5)
+            end
+        end
+    end
+
+    -- 🔹 AUTO PROGRESSION
+    if autoProgressEnabled and target then
         local cost = freeBtn and 0 or cheapestPrice
-        local money = getMoneyRaw()
         local displayName = target.name or ("button "..target.index)
 
         if money >= cost then
             CurrentActionLabel.Text = "Current Action: Buying "..displayName
+            -- Wait if tweening
+            while tweening do task.wait() end
             getRoot().CFrame = target.part.CFrame + Vector3.new(0,3,0)
         else
             CurrentActionLabel.Text =
                 "Current Action: Waiting for "..baseText.." to buy "..displayName
         end
     end
-
-    updateIndustryManager()
 end
