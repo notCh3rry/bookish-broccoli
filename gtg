@@ -183,7 +183,7 @@ end
 while task.wait(1) do
     if not autoProgressEnabled then continue end
 
-    local cheapest,cheapestPrice,freeBtn
+    local cheapest,cheapestPrice,freeBtn,baseText
 
     for i,model in ipairs(buttonsFolder:GetChildren()) do
         local btn = model:FindFirstChild("Button")
@@ -208,6 +208,7 @@ while task.wait(1) do
         if price and (not cheapestPrice or price < cheapestPrice) then
             cheapest = {part=physical,index=i}
             cheapestPrice = price
+            baseText = text
         end
     end
 
@@ -221,7 +222,7 @@ while task.wait(1) do
             getRoot().CFrame = target.part.CFrame + Vector3.new(0,3,0)
         else
             CurrentActionLabel.Text =
-                "Current Action: Waiting for $"..tostring(cost).." to buy button "..target.index
+                "Current Action: Waiting for "..baseText.." to buy button "..target.index
         end
     end
 
