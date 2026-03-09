@@ -1,6 +1,8 @@
-print("v6")
+print("v7")
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
+coroutine.wrap(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
+end)()
 
 -- SERVICES
 local Players = game:GetService("Players")
