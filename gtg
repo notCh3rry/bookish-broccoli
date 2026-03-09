@@ -1,4 +1,7 @@
-print("v5")
+print("v6")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
+
 -- SERVICES
 local Players = game:GetService("Players")
 local RepStore = game:GetService("ReplicatedStorage")
